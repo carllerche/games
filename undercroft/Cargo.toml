@@ -1,0 +1,11 @@
+[package]
+name = "undercroft"
+version = "0.1.0"
+edition.workspace = true
+description = "A top-down retro dungeon escape built with Bevy."
+
+[dependencies]
+# `wav` lets the synthesized sound effects and music be fed to the audio
+# engine as in-memory WAV bytes; no audio files ship with the game.
+bevy = { workspace = true, features = ["wav"] }
+rand.workspace = true

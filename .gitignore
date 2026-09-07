@@ -1,0 +1,12 @@
+# Cargo build output
+/target/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local tooling state
+.claude/settings.local.json
