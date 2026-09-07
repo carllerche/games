@@ -1,0 +1,5 @@
+[target.wasm32-unknown-unknown]
+# Required by getrandom 0.3 for browser targets; see the crate manifests.
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
+# `cargo run --target wasm32-unknown-unknown -p <game>` serves the game in a browser.
+runner = "wasm-server-runner"

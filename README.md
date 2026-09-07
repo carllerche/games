@@ -23,6 +23,37 @@ cargo run -p flappy_bird_3d
 Add `--release` for a smoother frame rate. The first build takes a few minutes because
 Bevy is large; later builds are quick and both games share the compiled dependencies.
 
+## Run in a browser
+
+Every game also builds to WebAssembly. Install the dev server once:
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-server-runner
+```
+
+then run any game with the wasm target; `.cargo/config.toml` routes it to the dev server,
+which prints a local URL to open:
+
+```sh
+cargo run --target wasm32-unknown-unknown -p flappy_bird
+```
+
+For a deployable build, use the size-tuned profile and generate the JS glue yourself:
+
+```sh
+cargo build --target wasm32-unknown-unknown --profile wasm-release -p undercroft
+wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/wasm-release/undercroft.wasm
+```
+
+The `wasm-bindgen-cli` version must match the `wasm-bindgen` crate in `Cargo.lock` exactly;
+the same goes for the copy bundled inside `wasm-server-runner`. If either complains about a
+schema mismatch, run `cargo update wasm-bindgen js-sys web-sys wasm-bindgen-futures` or
+reinstall the tool at the locked version.
+
+Browser notes: audio stays silent until the first click or keypress, and the canvas uses
+the window size from each game's config rather than filling the page.
+
 ## Controls
 
 | Action  | Keys                                    |
