@@ -10,7 +10,7 @@ mod debug;
 mod models;
 mod toon;
 
-use bevy::{core_pipeline::tonemapping::Tonemapping, prelude::*, window::WindowResolution};
+use bevy::{core_pipeline::tonemapping::Tonemapping, prelude::*};
 use flappy_core::{palette, *};
 use models::{Builder, ModelKit, Wing};
 use rand::Rng;
@@ -41,12 +41,7 @@ struct WingPhase(f32);
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Flappy Bird 3D".into(),
-                resolution: WindowResolution::new(WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
-                resizable: false,
-                ..default()
-            }),
+            primary_window: Some(flappy_core::window("Flappy Bird 3D")),
             ..default()
         }))
         .add_plugins((FlappyCorePlugin, ToonPlugin, debug::DebugPlugin))

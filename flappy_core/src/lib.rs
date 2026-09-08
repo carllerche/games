@@ -13,6 +13,7 @@
 use bevy::{
     math::bounding::{Aabb2d, IntersectsVolume},
     prelude::*,
+    window::PrimaryWindow,
 };
 use rand::Rng;
 
@@ -214,12 +215,14 @@ impl Plugin for FlappyCorePlugin {
             // initial state once startup is done so `OnEnter(Ready)` systems
             // (here and in the game crates) see the bird and the HUD.
             .add_systems(PostStartup, reenter_initial_state)
+            .add_systems(Update, scale_ui)
             .add_systems(OnEnter(GameState::Ready), enter_ready)
             .add_systems(OnEnter(GameState::Playing), enter_playing)
             .add_systems(OnEnter(GameState::GameOver), enter_game_over)
             .add_systems(
                 Update,
                 (
+                    #[cfg(not(target_arch = "wasm32"))]
                     quit_on_escape,
                     scroll_ground.run_if(not(in_state(GameState::GameOver))),
                     bob_bird.run_if(in_state(GameState::Ready)),
@@ -239,6 +242,76 @@ impl Plugin for FlappyCorePlugin {
                 )
                     .in_set(CoreSystems),
             );
+        #[cfg(target_arch = "wasm32")]
+        app.add_systems(Startup, web::letterbox_frame);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Window and screen fitting
+// ---------------------------------------------------------------------------
+
+/// The window both games open: a fixed portrait play area on desktop, and in
+/// the browser the `#game` canvas from `web/`, stretched to fill its parent.
+/// The page keeps the parent at the game's aspect ratio (see
+/// [`web::letterbox_frame`]), so the canvas is always a scaled copy of the
+/// desktop window.
+pub fn window(title: &str) -> Window {
+    Window {
+        title: title.into(),
+        resolution: bevy::window::WindowResolution::new(WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
+        resizable: false,
+        canvas: Some("#game".into()),
+        fit_canvas_to_parent: true,
+        ..default()
+    }
+}
+
+/// A 2D camera projection that always shows exactly the design play area,
+/// whatever the window's pixel size.
+pub fn fixed_projection() -> Projection {
+    Projection::Orthographic(OrthographicProjection {
+        scaling_mode: bevy::camera::ScalingMode::Fixed {
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
+        },
+        ..OrthographicProjection::default_2d()
+    })
+}
+
+/// Bevy UI is laid out in logical pixels, so a HUD designed for the desktop
+/// window would stay small on a large canvas. Scale it with the window.
+/// `UiScale` is optional so the headless test apps, which have no UI plugin,
+/// can still run the core systems.
+fn scale_ui(window: Query<&Window, With<PrimaryWindow>>, ui_scale: Option<ResMut<UiScale>>) {
+    let (Ok(window), Some(mut ui_scale)) = (window.single(), ui_scale) else {
+        return;
+    };
+    let scale = window.height() / WINDOW_HEIGHT;
+    if scale.is_finite() && scale > 0.0 && ui_scale.0 != scale {
+        ui_scale.0 = scale;
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+mod web {
+    use super::{WINDOW_HEIGHT, WINDOW_WIDTH};
+
+    /// Size the `#frame` element around the canvas to the largest rectangle
+    /// with the game's aspect ratio that fits the viewport. The canvas fills
+    /// the frame, so the page letterboxes the game instead of stretching it.
+    pub fn letterbox_frame() {
+        let Some(frame) = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|d| d.get_element_by_id("frame"))
+        else {
+            return;
+        };
+        let (w, h) = (WINDOW_WIDTH, WINDOW_HEIGHT);
+        let style = format!(
+            "width: min(100vw, calc(100vh * {w} / {h})); height: min(100vh, calc(100vw * {h} / {w}));"
+        );
+        let _ = frame.set_attribute("style", &style);
     }
 }
 
@@ -413,6 +486,7 @@ pub fn flap_pressed(keys: &ButtonInput<KeyCode>, mouse: &ButtonInput<MouseButton
         || mouse.just_pressed(MouseButton::Left)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn quit_on_escape(keys: Res<ButtonInput<KeyCode>>, mut exit: MessageWriter<AppExit>) {
     if keys.just_pressed(KeyCode::Escape) {
         exit.write(AppExit::Success);

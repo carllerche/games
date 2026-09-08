@@ -60,6 +60,11 @@ fn main() {
                     primary_window: Some(Window {
                         title: "Undercroft".into(),
                         resolution: WindowResolution::new(1280, 720),
+                        // In the browser, fill the `#game` canvas's parent
+                        // (the whole page; see `web/`). `fit_canvas` below
+                        // keeps the pixel art at an integer scale.
+                        canvas: Some("#game".into()),
+                        fit_canvas_to_parent: true,
                         ..default()
                     }),
                     ..default()
@@ -165,6 +170,7 @@ fn setup_cameras(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 fn fit_canvas(
     mut resized: MessageReader<WindowResized>,
     mut projection: Query<&mut Projection, With<OuterCamera>>,
+    mut ui_scale: ResMut<UiScale>,
 ) {
     for event in resized.read() {
         let scale = (event.width / CANVAS_W as f32).min(event.height / CANVAS_H as f32).floor().max(1.0);
@@ -173,6 +179,9 @@ fn fit_canvas(
                 o.scale = 1.0 / scale;
             }
         }
+        // The HUD was laid out for the 1280x720 window, where the canvas is
+        // scaled by 3; keep it in step with the canvas.
+        ui_scale.0 = scale / 3.0;
     }
 }
 
@@ -309,7 +318,9 @@ fn title_input(
     mut sfx: MessageWriter<audio::PlaySfx>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if keys.just_pressed(KeyCode::Escape) {
+    // Quitting only makes sense on desktop; in the browser it would leave a
+    // frozen canvas.
+    if cfg!(not(target_arch = "wasm32")) && keys.just_pressed(KeyCode::Escape) {
         exit.write(AppExit::Success);
     }
     if controls.confirm {

@@ -3,3 +3,7 @@
 rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
 # `cargo run --target wasm32-unknown-unknown -p <game>` serves the game in a browser.
 runner = "wasm-server-runner"
+
+[env]
+# Serve the same page layout the published build uses; see web/.
+WASM_SERVER_RUNNER_CUSTOM_INDEX_HTML = { value = "web/dev.html", relative = true }

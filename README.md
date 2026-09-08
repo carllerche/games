@@ -25,34 +25,49 @@ Bevy is large; later builds are quick and both games share the compiled dependen
 
 ## Run in a browser
 
-Every game also builds to WebAssembly. Install the dev server once:
+Every game also builds to WebAssembly. Install the tools once:
 
 ```sh
 rustup target add wasm32-unknown-unknown
 cargo install wasm-server-runner
+cargo install wasm-bindgen-cli --version <version of wasm-bindgen in Cargo.lock>
 ```
 
-then run any game with the wasm target; `.cargo/config.toml` routes it to the dev server,
-which prints a local URL to open:
+To play a game during development, run it with the wasm target. `.cargo/config.toml`
+routes it to `wasm-server-runner`, which serves `web/dev.html` and prints a local URL:
 
 ```sh
 cargo run --target wasm32-unknown-unknown -p flappy_bird
 ```
 
-For a deployable build, use the size-tuned profile and generate the JS glue yourself:
+To publish, build a static bundle for each game (or name the ones you want):
 
 ```sh
-cargo build --target wasm32-unknown-unknown --profile wasm-release -p undercroft
-wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/wasm-release/undercroft.wasm
+web/build.sh
 ```
 
-The `wasm-bindgen-cli` version must match the `wasm-bindgen` crate in `Cargo.lock` exactly;
-the same goes for the copy bundled inside `wasm-server-runner`. If either complains about a
-schema mismatch, run `cargo update wasm-bindgen js-sys web-sys wasm-bindgen-futures` or
-reinstall the tool at the locked version.
+This writes `dist/<game>/` containing `index.html`, the JS glue, and the `.wasm`, built
+with the size-tuned `wasm-release` profile. Upload each directory to any static host.
+The `.wasm` must be served with the `application/wasm` MIME type, which every common
+host does by default. If `wasm-opt` from Binaryen is installed, the script runs it too.
 
-Browser notes: audio stays silent until the first click or keypress, and the canvas uses
-the window size from each game's config rather than filling the page.
+### How the page fits the screen
+
+The games draw into a `<canvas id="game">` inside a `<div id="frame">`, and ask Bevy to
+keep the canvas the size of the frame. Undercroft fills the whole viewport and scales its
+pixel-art canvas to the largest integer factor that fits. The Flappy games are portrait,
+so at startup they size the frame to the largest 3:4 rectangle that fits, and the page
+letterboxes the rest in black. Each game's UI scales with the canvas.
+
+### Version matching
+
+`wasm-server-runner` bundles its own copy of `wasm-bindgen`, and `wasm-bindgen-cli` must
+match the `wasm-bindgen` crate in `Cargo.lock` exactly. If either complains about a
+schema mismatch, run `cargo update wasm-bindgen js-sys web-sys wasm-bindgen-futures` or
+reinstall the tool at the locked version. `web/build.sh` checks this before building.
+
+Browser notes: audio stays silent until the first click or keypress, and Escape does not
+quit in the browser.
 
 ## Controls
 

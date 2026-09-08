@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!-- Template for published builds; web/build.sh fills the {{ }} placeholders.
+     Keep the <style> block identical to the one in web/dev.html. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>{{ TITLE }}</title>
+  <style>
+    /* The canvas fills #frame. Games that need a fixed aspect ratio size #frame
+       themselves at startup; otherwise it is the whole viewport. */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #frame {
+      width: 100vw;
+      height: 100vh;
+    }
+    #game {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    #game:focus {
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="frame"><canvas id="game"></canvas></div>
+  <script type="module">
+    import init from "./{{ NAME }}.js";
+    init().catch((error) => {
+      // Bevy's wasm entry point unwinds with this marker instead of returning.
+      if (!error.message.startsWith("Using exceptions for control flow")) {
+        throw error;
+      }
+    });
+  </script>
+</body>
+</html>

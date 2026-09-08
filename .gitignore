@@ -10,3 +10,6 @@
 
 # Local tooling state
 .claude/settings.local.json
+
+# Browser builds from web/build.sh
+/dist/

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- Served by wasm-server-runner for `cargo run --target wasm32-unknown-unknown`.
+     The {{ }} placeholders are filled by the runner.
+     Keep the <style> block identical to the one in web/index.html. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>{{ TITLE }}</title>
+  <style>
+    /* The canvas fills #frame. Games that need a fixed aspect ratio size #frame
+       themselves at startup; otherwise it is the whole viewport. */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #frame {
+      width: 100vw;
+      height: 100vh;
+    }
+    #game {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    #game:focus {
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="frame"><canvas id="game"></canvas></div>
+  {{ NO_MODULE }}
+  <script type="module">
+    // {{ MODULE }}
+    wasm_bindgen({ module_or_path: "/api/wasm.wasm" }).catch((error) => {
+      if (!error.message.startsWith("Using exceptions for control flow")) {
+        throw error;
+      }
+    });
+
+    // Reload when the runner serves a new build.
+    const fetchVersion = () => fetch("/api/version").then((r) => r.text());
+    fetchVersion().then((version) => {
+      setInterval(() => {
+        fetchVersion()
+          .then((now) => { if (now !== version) window.location.reload(); })
+          .catch(() => {});
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

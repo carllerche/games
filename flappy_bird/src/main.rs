@@ -5,7 +5,7 @@
 //! Controls: Space, Up arrow, W, or left mouse click to flap.
 //! Press Escape to quit.
 
-use bevy::{prelude::*, window::WindowResolution};
+use bevy::prelude::*;
 use flappy_core::{palette, *};
 use rand::Rng;
 
@@ -27,12 +27,7 @@ struct MessageText;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Flappy Bird".into(),
-                resolution: WindowResolution::new(WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
-                resizable: false,
-                ..default()
-            }),
+            primary_window: Some(flappy_core::window("Flappy Bird")),
             ..default()
         }))
         .add_plugins(FlappyCorePlugin)
@@ -58,7 +53,7 @@ fn main() {
 // ---------------------------------------------------------------------------
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn((Camera2d, flappy_core::fixed_projection()));
 
     // Decorative clouds.
     let mut rng = rand::rng();
