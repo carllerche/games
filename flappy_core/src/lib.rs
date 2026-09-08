@@ -1,4 +1,4 @@
-//! Shared game logic for the Flappy Bird games.
+//! Game logic for Flappy Bird, kept separate from the rendering.
 //!
 //! Everything that defines how the game *plays* lives here: constants, the
 //! state machine, bird physics, pipe spawning, scrolling, scoring, collision,
@@ -253,7 +253,7 @@ impl Plugin for FlappyCorePlugin {
 // Window and screen fitting
 // ---------------------------------------------------------------------------
 
-/// The window both games open: a fixed portrait play area on desktop, and in
+/// The window the game opens: a fixed portrait play area on desktop, and in
 /// the browser the `#game` canvas from `web/`, stretched to fill its parent.
 /// The page keeps the parent at the game's aspect ratio (see
 /// [`web::letterbox_frame`]), so the canvas is always a scaled copy of the

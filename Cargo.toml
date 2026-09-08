@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["flappy_core", "flappy_bird", "flappy_bird_3d", "undercroft", "cat_powncer"]
+members = ["flappy_core", "flappy_bird", "undercroft", "cat_powncer"]
 
 [workspace.package]
 edition = "2024"

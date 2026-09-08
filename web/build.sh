@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 games=("$@")
 if [ ${#games[@]} -eq 0 ]; then
-  games=(flappy_bird flappy_bird_3d undercroft cat_powncer)
+  games=(flappy_bird undercroft cat_powncer)
 fi
 
 want=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"/\1/p')

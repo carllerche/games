@@ -1,4 +1,4 @@
-//! Developer helpers shared by both games, all off unless an environment
+//! Developer helpers for the game, all off unless an environment
 //! variable enables them.
 //!
 //! `FLAPPY_SCREENSHOT_DIR=<dir>`: play the game on autopilot for a few

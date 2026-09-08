@@ -4,25 +4,24 @@ A Cargo workspace of small games built on [Bevy](https://bevyengine.org) 0.19.
 
 - **Undercroft** (`undercroft/`): a top-down retro dungeon escape. See [undercroft/README.md](undercroft/README.md).
 - **Cat Powncer** (`cat_powncer/`): a cartoon 3D grid-hop platformer for young kids. See [cat_powncer/README.md](cat_powncer/README.md).
-- **Flappy Bird, twice**: two Flappy Bird games that share one gameplay implementation, described below.
+- **Flappy Bird** (`flappy_bird/`): the classic, rendered in 3D with cel shading and ink
+  outlines, in the style of *The Wind Waker*. Described below.
 
 ## Flappy Bird
 
-| Crate            | What it is                                                                 |
-| ---------------- | -------------------------------------------------------------------------- |
-| `flappy_core`    | All game logic: physics, state machine, pipes, scoring, collision, debris. |
-| `flappy_bird`    | The 2D game, drawn with flat colored sprites.                               |
-| `flappy_bird_3d` | The same game rendered in 3D with cel shading and ink outlines, in the style of *The Wind Waker*. |
+| Crate         | What it is                                                                 |
+| ------------- | -------------------------------------------------------------------------- |
+| `flappy_core` | All game logic: physics, state machine, pipes, scoring, collision, debris. |
+| `flappy_bird` | The game itself: 3D models, cel shading, and ink outlines.                  |
 
 ## Run
 
 ```sh
 cargo run -p flappy_bird
-cargo run -p flappy_bird_3d
 ```
 
 Add `--release` for a smoother frame rate. The first build takes a few minutes because
-Bevy is large; later builds are quick and both games share the compiled dependencies.
+Bevy is large; later builds are quick and the games share the compiled dependencies.
 
 ## Run in a browser
 
@@ -66,8 +65,8 @@ as the build command with `dist` as the output directory.
 
 The games draw into a `<canvas id="game">` inside a `<div id="frame">`, and ask Bevy to
 keep the canvas the size of the frame. Undercroft fills the whole viewport and scales its
-pixel-art canvas to the largest integer factor that fits. The Flappy games are portrait,
-so at startup they size the frame to the largest 3:4 rectangle that fits, and the page
+pixel-art canvas to the largest integer factor that fits. Flappy Bird is portrait,
+so at startup it sizes the frame to the largest 3:4 rectangle that fits, and the page
 letterboxes the rest in black. Each game's UI scales with the canvas.
 
 ### Version matching
@@ -93,18 +92,17 @@ quit in the browser.
 
 `flappy_core` owns every entity that matters to gameplay but never draws anything.
 It spawns pipe pairs (with invisible colliders), moves the bird, scrolls the ground,
-and spawns explosion debris. Each game crate:
+and spawns explosion debris. `flappy_bird`:
 
 - spawns the bird, ground tiles, and HUD at startup, and
 - watches for newly added `PipePair` and `Particle` entities and attaches visuals to them.
 
-Because both games run the exact same systems from `flappy_core`, they play identically.
 All tuning constants (gravity, flap strength, gap size, speed) live at the top of
 `flappy_core/src/lib.rs`, and `cargo test -p flappy_core` checks the physics and geometry.
 
 ## The 3D look
 
-Everything in `flappy_bird_3d` is built in code from four unit primitives (sphere, cube,
+Everything in `flappy_bird` is built in code from four unit primitives (sphere, cube,
 cylinder, cone), so there are no model files. Two tricks give the cartoon style:
 
 - **Cel shading** (`src/shaders/toon.wgsl`): a custom material with two hard lighting
@@ -117,7 +115,7 @@ The shader is embedded in the binary, so the game runs from anywhere.
 ### Screenshots without a keyboard
 
 ```sh
-FLAPPY_SCREENSHOT_DIR=/some/dir cargo run -p flappy_bird_3d
+FLAPPY_SCREENSHOT_DIR=/some/dir cargo run -p flappy_bird
 ```
 
 plays the game on autopilot for a few seconds, saves `title.png`, `playing.png`, and

@@ -33,7 +33,7 @@ impl ToonMaterial {
 
 impl Material for ToonMaterial {
     fn fragment_shader() -> ShaderRef {
-        "embedded://flappy_bird_3d/shaders/toon.wgsl".into()
+        "embedded://flappy_bird/shaders/toon.wgsl".into()
     }
 }
 

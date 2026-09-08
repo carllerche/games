@@ -2506,16 +2506,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "flappy_bird_3d"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "flappy_core",
- "getrandom 0.3.4",
- "rand 0.9.5",
-]
-
-[[package]]
 name = "flappy_core"
 version = "0.1.0"
 dependencies = [
