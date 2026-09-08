@@ -34,7 +34,12 @@ for game in "${games[@]}"; do
   wasm-bindgen --target web --no-typescript --out-dir "$out" --out-name "$game" \
     "target/wasm32-unknown-unknown/wasm-release/$game.wasm"
   if command -v wasm-opt >/dev/null; then
-    wasm-opt -Oz -o "$out/${game}_bg.wasm" "$out/${game}_bg.wasm"
+    # The feature flags match what rustc enables for wasm32-unknown-unknown;
+    # older Binaryen releases reject them unless told they are allowed.
+    wasm-opt -Oz \
+      --enable-bulk-memory --enable-mutable-globals --enable-multivalue \
+      --enable-nontrapping-float-to-int --enable-reference-types --enable-sign-ext \
+      -o "$out/${game}_bg.wasm" "$out/${game}_bg.wasm"
   fi
   # The window title, written either as `title: "..."` or `window("...")`.
   title=$(grep -ohE 'title: "[^"]+"|window\("[^"]+"\)' "$game/src/main.rs" | head -1 | sed 's/.*"\(.*\)".*/\1/')
