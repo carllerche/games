@@ -23,11 +23,11 @@ if [ "$want" != "$have" ]; then
   exit 1
 fi
 
-packages=()
-for game in "${games[@]}"; do packages+=(-p "$game"); done
-cargo build --target wasm32-unknown-unknown --profile wasm-release "${packages[@]}"
-
 for game in "${games[@]}"; do
+  # One game per cargo invocation: the games share their dependencies, but
+  # linking three fat-LTO binaries at once needs more memory than a CI
+  # runner has.
+  cargo build --target wasm32-unknown-unknown --profile wasm-release -p "$game"
   out="dist/$game"
   rm -rf "$out"
   mkdir -p "$out"

@@ -6,11 +6,8 @@
 //! then quit. Handy for checking the look without a person at the keyboard,
 //! and used to make the cover images for the web landing page.
 
-use bevy::{
-    prelude::*,
-    render::view::screenshot::{Screenshot, save_to_disk},
-};
 use crate::*;
+use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use std::path::PathBuf;
 
 pub struct DebugPlugin;
