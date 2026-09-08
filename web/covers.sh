@@ -9,9 +9,11 @@ trap 'rm -rf "$tmp"' EXIT
 FLAPPY_SCREENSHOT_DIR="$tmp/2d" cargo run -q -p flappy_bird
 FLAPPY_SCREENSHOT_DIR="$tmp/3d" cargo run -q -p flappy_bird_3d
 UNDERCROFT_SCREENSHOT_DIR="$tmp/uc" cargo run -q -p undercroft
+cargo run -q -p cat_powncer -- --level 6 --screenshot "$tmp/cat.png" --after 2.5
 
 jpg() { sips -s format jpeg -s formatOptions 82 --resampleWidth "$2" "$1" --out "$3" >/dev/null; }
 jpg "$tmp/2d/late.png"    720  web/covers/flappy_bird.jpg
 jpg "$tmp/3d/playing.png" 720  web/covers/flappy_bird_3d.jpg
 jpg "$tmp/uc/floor.png"   1280 web/covers/undercroft.jpg
+jpg "$tmp/cat.png"        1280 web/covers/cat_powncer.jpg
 ls -la web/covers

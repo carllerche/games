@@ -1957,6 +1957,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cat_powncer"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "cc"
 version = "1.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

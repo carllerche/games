@@ -3,6 +3,7 @@
 A Cargo workspace of small games built on [Bevy](https://bevyengine.org) 0.19.
 
 - **Undercroft** (`undercroft/`): a top-down retro dungeon escape. See [undercroft/README.md](undercroft/README.md).
+- **Cat Powncer** (`cat_powncer/`): a cartoon 3D grid-hop platformer for young kids. See [cat_powncer/README.md](cat_powncer/README.md).
 - **Flappy Bird, twice**: two Flappy Bird games that share one gameplay implementation, described below.
 
 ## Flappy Bird

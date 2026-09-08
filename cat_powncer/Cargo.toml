@@ -1,0 +1,8 @@
+[package]
+name = "cat_powncer"
+version = "0.1.0"
+edition.workspace = true
+description = "A cartoon grid-hop 3D platformer: a cat pounces across a giant floating cat-tree world."
+
+[dependencies]
+bevy.workspace = true
