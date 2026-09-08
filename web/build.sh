@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Build one or more games for the browser into dist/<game>/, ready to upload
-# to any static host.
+# Build the site into dist/: the landing page at dist/index.html and each
+# game under dist/<game>/. Upload the whole directory to any static host.
 #
 #   web/build.sh                 # every game
-#   web/build.sh undercroft      # one game
+#   web/build.sh undercroft      # rebuild one game; the landing page is always refreshed
 #
 # Needs `rustup target add wasm32-unknown-unknown` and `cargo install
 # wasm-bindgen-cli` at the version of the wasm-bindgen crate in Cargo.lock.
@@ -41,3 +41,9 @@ for game in "${games[@]}"; do
   sed -e "s/{{ TITLE }}/${title:-$game}/" -e "s/{{ NAME }}/$game/" web/index.html > "$out/index.html"
   echo "$out: $(du -h "$out/${game}_bg.wasm" | cut -f1) wasm"
 done
+
+# The landing page and its cover images.
+mkdir -p dist/covers
+cp web/site.html dist/index.html
+cp web/covers/*.jpg dist/covers/
+echo "dist/index.html: landing page"

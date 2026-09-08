@@ -40,16 +40,26 @@ routes it to `wasm-server-runner`, which serves `web/dev.html` and prints a loca
 cargo run --target wasm32-unknown-unknown -p flappy_bird
 ```
 
-To publish, build a static bundle for each game (or name the ones you want):
+To publish, build the whole site:
 
 ```sh
 web/build.sh
 ```
 
-This writes `dist/<game>/` containing `index.html`, the JS glue, and the `.wasm`, built
-with the size-tuned `wasm-release` profile. Upload each directory to any static host.
-The `.wasm` must be served with the `application/wasm` MIME type, which every common
-host does by default. If `wasm-opt` from Binaryen is installed, the script runs it too.
+This writes `dist/`: a landing page at `dist/index.html` that lists the games as a
+picker (`web/site.html`, with cover images from `web/covers/`), and each game under
+`dist/<game>/` as `index.html` plus the JS glue and the `.wasm`, built with the
+size-tuned `wasm-release` profile. Upload the directory to any static host; all links
+are relative, so it also works under a sub-path. The `.wasm` must be served with the
+`application/wasm` MIME type, which every common host does by default. If `wasm-opt`
+from Binaryen is installed, the script runs it too.
+
+`.github/workflows/pages.yml` does all of this on every push to `main` and deploys to
+GitHub Pages. Enable it once under Settings > Pages by setting the source to
+"GitHub Actions". Netlify, Cloudflare Pages, and similar hosts can run `web/build.sh`
+as the build command with `dist` as the output directory.
+
+`web/covers.sh` regenerates the cover images from each game's screenshot mode.
 
 ### How the page fits the screen
 

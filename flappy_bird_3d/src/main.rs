@@ -6,7 +6,6 @@
 //! Controls: Space, Up arrow, W, or left mouse click to flap.
 //! Press Escape to quit.
 
-mod debug;
 mod models;
 mod toon;
 
@@ -44,7 +43,7 @@ fn main() {
             primary_window: Some(flappy_core::window("Flappy Bird 3D")),
             ..default()
         }))
-        .add_plugins((FlappyCorePlugin, ToonPlugin, debug::DebugPlugin))
+        .add_plugins((FlappyCorePlugin, ToonPlugin, flappy_core::debug::DebugPlugin))
         .insert_resource(ClearColor(palette::SKY))
         .init_resource::<WingPhase>()
         .add_systems(PreStartup, init_model_kit)

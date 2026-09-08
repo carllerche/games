@@ -1,14 +1,16 @@
-//! Developer helpers, all off unless an environment variable enables them.
+//! Developer helpers shared by both games, all off unless an environment
+//! variable enables them.
 //!
 //! `FLAPPY_SCREENSHOT_DIR=<dir>`: play the game on autopilot for a few
 //! seconds, save `title.png`, `playing.png`, and `late.png` into `<dir>`,
-//! then quit. Handy for checking the look without a person at the keyboard.
+//! then quit. Handy for checking the look without a person at the keyboard,
+//! and used to make the cover images for the web landing page.
 
 use bevy::{
     prelude::*,
     render::view::screenshot::{Screenshot, save_to_disk},
 };
-use flappy_core::*;
+use crate::*;
 use std::path::PathBuf;
 
 pub struct DebugPlugin;

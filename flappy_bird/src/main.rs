@@ -30,7 +30,7 @@ fn main() {
             primary_window: Some(flappy_core::window("Flappy Bird")),
             ..default()
         }))
-        .add_plugins(FlappyCorePlugin)
+        .add_plugins((FlappyCorePlugin, flappy_core::debug::DebugPlugin))
         .insert_resource(ClearColor(palette::SKY))
         .add_systems(Startup, setup)
         .add_systems(OnEnter(GameState::Ready), show_ready_message)
