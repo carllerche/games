@@ -64,8 +64,16 @@ fn build_ui(commands: &mut Commands, hero: &Hero, perks: &[Perk], selected: usiz
             BackgroundColor(Color::BLACK.with_alpha(0.7)),
         ))
         .with_children(|root| {
-            root.spawn(text(format!("FLOOR {} CLEARED", hero.floor), 36.0, palette::YELLOW));
-            root.spawn(text("Choose a perk to take deeper", 18.0, palette::LIGHT_GREY));
+            root.spawn(text(
+                format!("FLOOR {} CLEARED", hero.floor),
+                36.0,
+                palette::YELLOW,
+            ));
+            root.spawn(text(
+                "Choose a perk to take deeper",
+                18.0,
+                palette::LIGHT_GREY,
+            ));
             root.spawn(Node {
                 flex_direction: FlexDirection::Row,
                 column_gap: Val::Px(18.0),
@@ -84,16 +92,36 @@ fn build_ui(commands: &mut Commands, hero: &Hero, perks: &[Perk], selected: usiz
                             border: UiRect::all(Val::Px(3.0)),
                             ..default()
                         },
-                        BorderColor::all(if is_selected { palette::YELLOW } else { palette::DARK_GREY }),
-                        BackgroundColor(if is_selected { palette::DARKER_GREY } else { palette::NIGHT }),
+                        BorderColor::all(if is_selected {
+                            palette::YELLOW
+                        } else {
+                            palette::DARK_GREY
+                        }),
+                        BackgroundColor(if is_selected {
+                            palette::DARKER_GREY
+                        } else {
+                            palette::NIGHT
+                        }),
                     ))
                     .with_children(|card| {
-                        card.spawn(text(perk.name(), 20.0, if is_selected { palette::YELLOW } else { palette::WHITE }));
+                        card.spawn(text(
+                            perk.name(),
+                            20.0,
+                            if is_selected {
+                                palette::YELLOW
+                            } else {
+                                palette::WHITE
+                            },
+                        ));
                         card.spawn(text(perk.description(), 15.0, palette::LIGHT_GREY));
                     });
                 }
             });
-            root.spawn(text("Left/Right: choose    Enter: take it", 14.0, palette::GREY));
+            root.spawn(text(
+                "Left/Right: choose    Enter: take it",
+                14.0,
+                palette::GREY,
+            ));
         });
 }
 
@@ -124,7 +152,11 @@ fn input(
         hero.perks.push(perk);
         hero.floor += 1;
         sfx.write(PlaySfx(SfxKind::Perk));
-        notify.write(Notify(format!("Perk taken: {}. {}", perk.name(), perk.description())));
+        notify.write(Notify(format!(
+            "Perk taken: {}. {}",
+            perk.name(),
+            perk.description()
+        )));
         next.set(GameState::Loading);
         return;
     }

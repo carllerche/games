@@ -68,10 +68,12 @@ fn load_floor(
                         SpriteId::Wall
                     }
                 }
-                Tile::Floor | Tile::Spikes => {
-                    [SpriteId::Floor0, SpriteId::Floor1, SpriteId::Floor2, SpriteId::Floor3]
-                        [((x * 7 + y * 13 + (x * y) % 5) % 4) as usize]
-                }
+                Tile::Floor | Tile::Spikes => [
+                    SpriteId::Floor0,
+                    SpriteId::Floor1,
+                    SpriteId::Floor2,
+                    SpriteId::Floor3,
+                ][((x * 7 + y * 13 + (x * y) % 5) % 4) as usize],
                 Tile::Carpet => SpriteId::Carpet,
                 Tile::Stairs => SpriteId::Stairs,
                 Tile::Rubble => SpriteId::Rubble,
@@ -121,9 +123,19 @@ fn load_floor(
                 let home = d.room_at(*p).map(|i| &d.rooms[i]);
                 spawn_enemy(&mut commands, &atlas, *kind, d.floor, pos, home);
             }
-            Spawn::Coin => spawn_pickup(&mut commands, &atlas, pos, PickupKind::Coin(2), Vec2::ZERO),
-            Spawn::Potion => spawn_pickup(&mut commands, &atlas, pos, PickupKind::Potion, Vec2::ZERO),
-            Spawn::ArrowBundle => spawn_pickup(&mut commands, &atlas, pos, PickupKind::Arrows(6), Vec2::ZERO),
+            Spawn::Coin => {
+                spawn_pickup(&mut commands, &atlas, pos, PickupKind::Coin(2), Vec2::ZERO)
+            }
+            Spawn::Potion => {
+                spawn_pickup(&mut commands, &atlas, pos, PickupKind::Potion, Vec2::ZERO)
+            }
+            Spawn::ArrowBundle => spawn_pickup(
+                &mut commands,
+                &atlas,
+                pos,
+                PickupKind::Arrows(6),
+                Vec2::ZERO,
+            ),
             Spawn::Chest(loot) => {
                 commands.spawn((
                     FloorEntity,

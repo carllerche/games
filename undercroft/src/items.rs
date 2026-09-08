@@ -17,11 +17,41 @@ pub struct SwordTier {
 }
 
 pub const SWORDS: [SwordTier; 5] = [
-    SwordTier { name: "Rusty Sword", damage: 2, level: 1, price: 0, tint: palette::BROWN },
-    SwordTier { name: "Iron Sword", damage: 3, level: 2, price: 35, tint: palette::LIGHT_GREY },
-    SwordTier { name: "Steel Sword", damage: 5, level: 4, price: 85, tint: palette::WHITE },
-    SwordTier { name: "Enchanted Blade", damage: 7, level: 6, price: 160, tint: palette::CYAN },
-    SwordTier { name: "Runeblade", damage: 10, level: 8, price: 280, tint: palette::PURPLE },
+    SwordTier {
+        name: "Rusty Sword",
+        damage: 2,
+        level: 1,
+        price: 0,
+        tint: palette::BROWN,
+    },
+    SwordTier {
+        name: "Iron Sword",
+        damage: 3,
+        level: 2,
+        price: 35,
+        tint: palette::LIGHT_GREY,
+    },
+    SwordTier {
+        name: "Steel Sword",
+        damage: 5,
+        level: 4,
+        price: 85,
+        tint: palette::WHITE,
+    },
+    SwordTier {
+        name: "Enchanted Blade",
+        damage: 7,
+        level: 6,
+        price: 160,
+        tint: palette::CYAN,
+    },
+    SwordTier {
+        name: "Runeblade",
+        damage: 10,
+        level: 8,
+        price: 280,
+        tint: palette::PURPLE,
+    },
 ];
 
 pub struct BowTier {
@@ -33,9 +63,27 @@ pub struct BowTier {
 }
 
 pub const BOWS: [BowTier; 3] = [
-    BowTier { name: "Short Bow", damage: 2, level: 1, price: 40, arrow_speed: 200.0 },
-    BowTier { name: "Longbow", damage: 4, level: 3, price: 100, arrow_speed: 260.0 },
-    BowTier { name: "Elven Bow", damage: 6, level: 5, price: 180, arrow_speed: 320.0 },
+    BowTier {
+        name: "Short Bow",
+        damage: 2,
+        level: 1,
+        price: 40,
+        arrow_speed: 200.0,
+    },
+    BowTier {
+        name: "Longbow",
+        damage: 4,
+        level: 3,
+        price: 100,
+        arrow_speed: 260.0,
+    },
+    BowTier {
+        name: "Elven Bow",
+        damage: 6,
+        level: 5,
+        price: 180,
+        arrow_speed: 320.0,
+    },
 ];
 
 pub struct ArmorTier {
@@ -47,9 +95,27 @@ pub struct ArmorTier {
 }
 
 pub const ARMORS: [ArmorTier; 3] = [
-    ArmorTier { name: "Leather Armor", reduction: 1, level: 1, price: 45, tint: palette::BROWN },
-    ArmorTier { name: "Chainmail", reduction: 2, level: 3, price: 120, tint: palette::GREY },
-    ArmorTier { name: "Plate Armor", reduction: 3, level: 6, price: 240, tint: palette::WHITE },
+    ArmorTier {
+        name: "Leather Armor",
+        reduction: 1,
+        level: 1,
+        price: 45,
+        tint: palette::BROWN,
+    },
+    ArmorTier {
+        name: "Chainmail",
+        reduction: 2,
+        level: 3,
+        price: 120,
+        tint: palette::GREY,
+    },
+    ArmorTier {
+        name: "Plate Armor",
+        reduction: 3,
+        level: 6,
+        price: 240,
+        tint: palette::WHITE,
+    },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -222,14 +288,22 @@ impl ShopItem {
         match self {
             ShopItem::Potion => format!("Restores {} HP. Drink with Q.", hero.potion_heal()),
             ShopItem::Arrows => "Ammunition for your bow.".into(),
-            ShopItem::Sword(i) => format!("Sword damage {} (now {}).", SWORDS[i].damage, hero.sword_damage()),
+            ShopItem::Sword(i) => format!(
+                "Sword damage {} (now {}).",
+                SWORDS[i].damage,
+                hero.sword_damage()
+            ),
             ShopItem::Bow(i) => format!("Arrow damage {}. Fire with K.", BOWS[i].damage),
             ShopItem::Armor(i) => format!("Blocks {} damage per hit.", ARMORS[i].reduction),
             ShopItem::HeartContainer => "Max health +5.".into(),
             ShopItem::EnergyCrystal => "Max energy +25.".into(),
             ShopItem::Magic(m) => m.description().into(),
-            ShopItem::Quiver(Element::Fire) => "Arrows set enemies ablaze. Fire spreads between them.".into(),
-            ShopItem::Quiver(Element::Poison) => "Arrows poison enemies, who keep taking damage.".into(),
+            ShopItem::Quiver(Element::Fire) => {
+                "Arrows set enemies ablaze. Fire spreads between them.".into()
+            }
+            ShopItem::Quiver(Element::Poison) => {
+                "Arrows poison enemies, who keep taking damage.".into()
+            }
             ShopItem::Quiver(Element::Frost) => "Arrows freeze enemies solid for a moment.".into(),
         }
     }
@@ -363,7 +437,11 @@ pub fn generate_stock(hero: &Hero, floor: u32, rng: &mut impl Rng) -> Vec<ShopIt
 
 /// Three random perks the hero doesn't have yet.
 pub fn perk_choices(hero: &Hero, rng: &mut impl Rng) -> Vec<Perk> {
-    let mut pool: Vec<Perk> = Perk::ALL.iter().copied().filter(|p| !hero.has_perk(*p)).collect();
+    let mut pool: Vec<Perk> = Perk::ALL
+        .iter()
+        .copied()
+        .filter(|p| !hero.has_perk(*p))
+        .collect();
     pool.shuffle(rng);
     pool.truncate(3);
     pool

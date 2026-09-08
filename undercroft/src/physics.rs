@@ -33,7 +33,11 @@ pub fn move_box(d: &Dungeon, pos: Vec2, delta: Vec2, half: Vec2) -> (Vec2, BVec2
 
     if delta.x != 0.0 {
         let nx = p.x + delta.x;
-        if overlaps_solid(d, Vec2::new(nx - half.x, p.y - half.y), Vec2::new(nx + half.x, p.y + half.y)) {
+        if overlaps_solid(
+            d,
+            Vec2::new(nx - half.x, p.y - half.y),
+            Vec2::new(nx + half.x, p.y + half.y),
+        ) {
             blocked.x = true;
             if delta.x > 0.0 {
                 let edge = ((nx + half.x) / TILE).floor() * TILE;
@@ -48,7 +52,11 @@ pub fn move_box(d: &Dungeon, pos: Vec2, delta: Vec2, half: Vec2) -> (Vec2, BVec2
     }
     if delta.y != 0.0 {
         let ny = p.y + delta.y;
-        if overlaps_solid(d, Vec2::new(p.x - half.x, ny - half.y), Vec2::new(p.x + half.x, ny + half.y)) {
+        if overlaps_solid(
+            d,
+            Vec2::new(p.x - half.x, ny - half.y),
+            Vec2::new(p.x + half.x, ny + half.y),
+        ) {
             blocked.y = true;
             if delta.y > 0.0 {
                 let edge = ((ny + half.y) / TILE).floor() * TILE;
@@ -125,7 +133,10 @@ pub fn flow_direction(d: &Dungeon, field: &[u16], pos: Vec2) -> Vec2 {
                 continue;
             }
             // Diagonals need both orthogonal neighbours open.
-            if dx != 0 && dy != 0 && (d.solid(t + IVec2::new(dx, 0)) || d.solid(t + IVec2::new(0, dy))) {
+            if dx != 0
+                && dy != 0
+                && (d.solid(t + IVec2::new(dx, 0)) || d.solid(t + IVec2::new(0, dy)))
+            {
                 continue;
             }
             let v = field[idx(q)];

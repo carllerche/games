@@ -11,6 +11,10 @@ pub struct Controls {
     pub potion: bool,
     pub interact: bool,
     pub cycle: bool,
+    /// Held: raise the shield.
+    pub block: bool,
+    /// Just pressed: the class's special ability.
+    pub special: bool,
     pub confirm: bool,
     pub cancel: bool,
     pub pause: bool,
@@ -55,6 +59,8 @@ pub fn read_input(keys: Res<ButtonInput<KeyCode>>, pads: Query<&Gamepad>, mut c:
     c.potion = just(&[KeyQ]);
     c.interact = just(&[KeyE]);
     c.cycle = just(&[Tab]);
+    c.block = key(&[KeyL]);
+    c.special = just(&[KeyF]);
     c.confirm = just(&[Enter, Space, KeyE, KeyJ]);
     c.cancel = just(&[Escape, KeyQ]);
     c.pause = just(&[Escape]);
@@ -82,12 +88,14 @@ pub fn read_input(keys: Res<ButtonInput<KeyCode>>, pads: Query<&Gamepad>, mut c:
         if pad.pressed(DPadRight) {
             stick.x = 1.0;
         }
-        c.sprint |= pad.pressed(RightTrigger2) || pad.pressed(LeftTrigger2) || pad.pressed(RightTrigger);
+        c.sprint |= pad.pressed(RightTrigger2) || pad.pressed(LeftTrigger2);
+        c.block |= pad.pressed(LeftTrigger);
+        c.special |= pad.just_pressed(RightTrigger);
         c.attack |= pad.just_pressed(South);
         c.bow |= pad.just_pressed(West);
         c.potion |= pad.just_pressed(North);
         c.interact |= pad.just_pressed(East);
-        c.cycle |= pad.just_pressed(LeftTrigger);
+        c.cycle |= pad.just_pressed(Select);
         c.confirm |= pad.just_pressed(South) || pad.just_pressed(Start);
         c.cancel |= pad.just_pressed(East);
         c.pause |= pad.just_pressed(Start);
@@ -107,5 +115,9 @@ pub fn read_input(keys: Res<ButtonInput<KeyCode>>, pads: Query<&Gamepad>, mut c:
     if dir == Vec2::ZERO {
         dir = stick;
     }
-    c.move_dir = if dir.length() > 1.0 { dir.normalize() } else { dir };
+    c.move_dir = if dir.length() > 1.0 {
+        dir.normalize()
+    } else {
+        dir
+    };
 }

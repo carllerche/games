@@ -31,10 +31,12 @@ pub enum SfxKind {
     Perk,
     Death,
     Victory,
+    Block,
+    Special,
 }
 
 impl SfxKind {
-    const ALL: [SfxKind; 23] = [
+    const ALL: [SfxKind; 25] = [
         Self::Swing,
         Self::Hit,
         Self::Hurt,
@@ -58,6 +60,8 @@ impl SfxKind {
         Self::Perk,
         Self::Death,
         Self::Victory,
+        Self::Block,
+        Self::Special,
     ];
 }
 
@@ -87,9 +91,16 @@ fn build_bank(mut commands: Commands, mut sources: ResMut<Assets<AudioSource>>) 
     let mut sfx = HashMap::new();
     for kind in SfxKind::ALL {
         let samples = synth_sfx(kind);
-        sfx.insert(kind, sources.add(AudioSource { bytes: wav(&samples).into() }));
+        sfx.insert(
+            kind,
+            sources.add(AudioSource {
+                bytes: wav(&samples).into(),
+            }),
+        );
     }
-    let music = sources.add(AudioSource { bytes: wav(&synth_music()).into() });
+    let music = sources.add(AudioSource {
+        bytes: wav(&synth_music()).into(),
+    });
     commands.spawn((
         Music,
         AudioPlayer::new(music.clone()),
@@ -98,7 +109,11 @@ fn build_bank(mut commands: Commands, mut sources: ResMut<Assets<AudioSource>>) 
     commands.insert_resource(SoundBank { sfx, music });
 }
 
-fn play_sfx(mut commands: Commands, mut messages: MessageReader<PlaySfx>, bank: Option<Res<SoundBank>>) {
+fn play_sfx(
+    mut commands: Commands,
+    mut messages: MessageReader<PlaySfx>,
+    bank: Option<Res<SoundBank>>,
+) {
     let Some(bank) = bank else { return };
     let _ = &bank.music;
     for PlaySfx(kind) in messages.read() {
@@ -156,12 +171,21 @@ fn square(phase: f32, duty: f32) -> f32 {
 
 fn triangle(phase: f32) -> f32 {
     let p = phase.fract();
-    if p < 0.5 { p * 4.0 - 1.0 } else { 3.0 - p * 4.0 }
+    if p < 0.5 {
+        p * 4.0 - 1.0
+    } else {
+        3.0 - p * 4.0
+    }
 }
 
 /// Renders `seconds` of a tone whose pitch and amplitude are functions of
 /// time (0..1 over the sound), using the given oscillator.
-fn tone(seconds: f32, osc: impl Fn(f32, f32) -> f32, freq: impl Fn(f32) -> f32, amp: impl Fn(f32) -> f32) -> Vec<f32> {
+fn tone(
+    seconds: f32,
+    osc: impl Fn(f32, f32) -> f32,
+    freq: impl Fn(f32) -> f32,
+    amp: impl Fn(f32) -> f32,
+) -> Vec<f32> {
     let n = (seconds * RATE as f32) as usize;
     let mut phase = 0.0f32;
     let mut out = Vec::with_capacity(n);
@@ -214,7 +238,12 @@ fn synth_sfx(kind: SfxKind) -> Vec<f32> {
             tone(0.09, sq(0.5), |t| 440.0 - t * 300.0, |t| decay(t) * 0.5),
             noise_burst(0.07, |t| decay(t) * 0.5, 0.6),
         ]),
-        SfxKind::Hurt => tone(0.25, sq(0.3), |t| 220.0 - t * 120.0 + (t * 60.0).sin() * 20.0, |t| decay(t) * 0.6),
+        SfxKind::Hurt => tone(
+            0.25,
+            sq(0.3),
+            |t| 220.0 - t * 120.0 + (t * 60.0).sin() * 20.0,
+            |t| decay(t) * 0.6,
+        ),
         SfxKind::Coin => concat(&[
             tone(0.06, sq(0.5), |_| 1046.0, |_| 0.4),
             tone(0.14, sq(0.5), |_| 1568.0, |t| decay(t) * 0.4),
@@ -269,7 +298,12 @@ fn synth_sfx(kind: SfxKind) -> Vec<f32> {
             tone(0.3, tri, |_| 1760.0, |t| decay(t) * 0.5),
         ]),
         SfxKind::Roar => mix(&[
-            tone(0.7, sq(0.5), |t| 80.0 + (t * 40.0).sin() * 15.0 - t * 30.0, |t| (t * 10.0).min(1.0) * (1.0 - t) * 0.6),
+            tone(
+                0.7,
+                sq(0.5),
+                |t| 80.0 + (t * 40.0).sin() * 15.0 - t * 30.0,
+                |t| (t * 10.0).min(1.0) * (1.0 - t) * 0.6,
+            ),
             noise_burst(0.7, |t| (1.0 - t) * 0.4, 0.15),
         ]),
         SfxKind::Menu => tone(0.05, sq(0.5), |_| 880.0, |t| decay(t) * 0.3),
@@ -301,6 +335,18 @@ fn synth_sfx(kind: SfxKind) -> Vec<f32> {
             tone(0.15, sq(0.5), |_| 1046.0, |_| 0.5),
             tone(0.15, sq(0.5), |_| 784.0, |_| 0.5),
             tone(0.6, sq(0.5), |_| 1046.0, |t| (1.0 - t) * 0.5),
+        ]),
+        // A metallic clang: a bright ringing tone over a sharp noise hit.
+        SfxKind::Block => mix(&[
+            tone(0.22, sq(0.5), |t| 1800.0 - t * 400.0, |t| decay(t) * 0.35),
+            tone(0.22, tri, |_| 2700.0, |t| decay(t) * 0.25),
+            noise_burst(0.05, |t| decay(t) * 0.6, 0.9),
+        ]),
+        SfxKind::Special => concat(&[
+            tone(0.06, sq(0.25), |_| 440.0, |_| 0.4),
+            tone(0.06, sq(0.25), |_| 659.0, |_| 0.4),
+            tone(0.06, sq(0.25), |_| 880.0, |_| 0.4),
+            tone(0.3, sq(0.25), |t| 1318.0 + t * 200.0, |t| decay(t) * 0.4),
         ]),
     }
 }
@@ -354,18 +400,33 @@ fn synth_music() -> Vec<f32> {
                     vec![0.0; (eighth * RATE as f32) as usize]
                 } else {
                     let f = midi(note);
-                    tone(eighth, |p, _| square(p, 0.25), move |_| f, |t| (1.0 - t * 0.6) * 0.16)
+                    tone(
+                        eighth,
+                        |p, _| square(p, 0.25),
+                        move |_| f,
+                        |t| (1.0 - t * 0.6) * 0.16,
+                    )
                 };
                 lead.extend(seg);
 
                 let bf = midi(root - 12 + if step % 4 == 3 { 12 } else { 0 });
-                bass.extend(tone(eighth, |p, _| triangle(p), move |_| bf, |t| (1.0 - t * 0.3) * 0.28));
+                bass.extend(tone(
+                    eighth,
+                    |p, _| triangle(p),
+                    move |_| bf,
+                    |t| (1.0 - t * 0.3) * 0.28,
+                ));
 
                 let kick = step % 4 == 0;
                 let hat = step % 2 == 1;
                 let mut d = vec![0.0; (eighth * RATE as f32) as usize];
                 if kick {
-                    let k = tone(0.1, |p, _| (p * TAU).sin(), |t| 120.0 - t * 80.0, |t| decay(t) * 0.5);
+                    let k = tone(
+                        0.1,
+                        |p, _| (p * TAU).sin(),
+                        |t| 120.0 - t * 80.0,
+                        |t| decay(t) * 0.5,
+                    );
                     for (o, s) in d.iter_mut().zip(k) {
                         *o += s;
                     }

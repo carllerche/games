@@ -4,7 +4,11 @@
 use bevy::prelude::*;
 
 const fn hex(rgb: u32) -> Color {
-    Color::srgb_u8((rgb >> 16) as u8, (rgb >> 8 & 0xff) as u8, (rgb & 0xff) as u8)
+    Color::srgb_u8(
+        (rgb >> 16) as u8,
+        (rgb >> 8 & 0xff) as u8,
+        (rgb & 0xff) as u8,
+    )
 }
 
 pub const OUTLINE: Color = hex(0x1a1423);

@@ -26,7 +26,13 @@ impl Plugin for ShopPlugin {
     }
 }
 
-fn open_shop(mut commands: Commands, atlas: Res<Atlas>, hero: Res<Hero>, ctx: Res<ShopContext>, keepers: Query<&Shopkeeper>) {
+fn open_shop(
+    mut commands: Commands,
+    atlas: Res<Atlas>,
+    hero: Res<Hero>,
+    ctx: Res<ShopContext>,
+    keepers: Query<&Shopkeeper>,
+) {
     if let Ok(keeper) = keepers.get(ctx.shopkeeper) {
         build_ui(&mut commands, &atlas, &hero, &keeper.stock, ctx.selected);
     }
@@ -38,7 +44,13 @@ fn close_shop(mut commands: Commands, ui: Query<Entity, With<ShopUi>>) {
     }
 }
 
-fn build_ui(commands: &mut Commands, atlas: &Atlas, hero: &Hero, stock: &[ShopItem], selected: usize) {
+fn build_ui(
+    commands: &mut Commands,
+    atlas: &Atlas,
+    hero: &Hero,
+    stock: &[ShopItem],
+    selected: usize,
+) {
     commands
         .spawn((
             ShopUi,
@@ -68,7 +80,10 @@ fn build_ui(commands: &mut Commands, atlas: &Atlas, hero: &Hero, stock: &[ShopIt
             .with_children(|panel| {
                 panel.spawn(text("SHOPKEEPER", 28.0, palette::CARPET_TRIM));
                 panel.spawn(text(
-                    format!("\"Take a look, traveller.\"     Coins: {}     Level {}", hero.coins, hero.level),
+                    format!(
+                        "\"Take a look, traveller.\"     Coins: {}     Level {}",
+                        hero.coins, hero.level
+                    ),
                     15.0,
                     palette::LIGHT_GREY,
                 ));
@@ -111,8 +126,16 @@ fn build_ui(commands: &mut Commands, atlas: &Atlas, hero: &Hero, stock: &[ShopIt
                                 border: UiRect::all(Val::Px(2.0)),
                                 ..default()
                             },
-                            BorderColor::all(if is_selected { palette::YELLOW } else { Color::NONE }),
-                            BackgroundColor(if is_selected { palette::DARKER_GREY } else { Color::NONE }),
+                            BorderColor::all(if is_selected {
+                                palette::YELLOW
+                            } else {
+                                Color::NONE
+                            }),
+                            BackgroundColor(if is_selected {
+                                palette::DARKER_GREY
+                            } else {
+                                Color::NONE
+                            }),
                         ))
                         .with_children(|row| {
                             row.spawn((
@@ -197,7 +220,10 @@ fn shop_input(
         let price = item.price(hero.floor);
         if hero.level < item.level() {
             sfx.write(PlaySfx(SfxKind::Error));
-            notify.write(Notify(format!("You need to be level {} for that.", item.level())));
+            notify.write(Notify(format!(
+                "You need to be level {} for that.",
+                item.level()
+            )));
         } else if hero.coins < price {
             sfx.write(PlaySfx(SfxKind::Error));
             notify.write(Notify("Not enough coins.".into()));

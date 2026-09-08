@@ -30,6 +30,7 @@ impl Plugin for DebugPlugin {
                 dir: PathBuf::from(dir),
                 shots: vec![
                     (0.8, "title.png"),
+                    (1.6, "classes.png"),
                     (3.0, "floor.png"),
                     (5.5, "explore.png"),
                     (8.0, "shop.png"),
@@ -39,6 +40,9 @@ impl Plugin for DebugPlugin {
                 elapsed: 0.0,
                 phase: 0,
                 spawned_targets: false,
+                used_special: false,
+                title_done: false,
+                class_done: false,
             })
             .add_systems(PreUpdate, autopilot.after(crate::input::read_input))
             .add_systems(Update, (take_screenshots, diagnostics));
@@ -53,6 +57,9 @@ struct ScreenshotRun {
     elapsed: f32,
     phase: u32,
     spawned_targets: bool,
+    used_special: bool,
+    title_done: bool,
+    class_done: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -72,7 +79,15 @@ fn autopilot(
     run.elapsed += time.delta_secs();
     let t = run.elapsed;
     match state.get() {
-        GameState::Title if t > 1.2 => controls.confirm = true,
+        // Press once: a held confirm would carry into the next screen.
+        GameState::Title if t > 1.2 && !run.title_done => {
+            controls.confirm = true;
+            run.title_done = true;
+        }
+        GameState::ClassSelect if t > 2.0 && !run.class_done => {
+            controls.confirm = true;
+            run.class_done = true;
+        }
         GameState::Playing => {
             // Wander in a slow circle, swinging the sword now and then.
             let mode = std::env::var("UNDERCROFT_AUTOBOW").unwrap_or_default();
@@ -84,6 +99,10 @@ fn autopilot(
                 let angle = t * 1.3;
                 controls.move_dir = Vec2::from_angle(angle);
                 controls.sprint = (t * 2.0) as i32 % 3 == 0;
+                // Raise the shield for a while, and try the special once.
+                controls.block = (4.8..5.8).contains(&t);
+                controls.special = (3.5..3.55).contains(&t) && !run.used_special;
+                run.used_special |= controls.special;
             }
             controls.attack = (mode.is_empty() || t > 6.0) && (t * 10.0) as i32 % 7 == 0;
             // Exercise enchanted arrows: a bow, plenty of ammo, fire loaded.
@@ -100,7 +119,11 @@ fn autopilot(
             }
             controls.bow = !mode.is_empty() && t < 3.0 && (t * 10.0) as i32 % 5 == 0;
             // Targets for those arrows: a ring of slimes around the hero.
-            if !mode.is_empty() && run.phase == 0 && t > 2.0 && hero.kills == 0 && !run.spawned_targets
+            if !mode.is_empty()
+                && run.phase == 0
+                && t > 2.0
+                && hero.kills == 0
+                && !run.spawned_targets
                 && let Ok((entity, p)) = player.single()
             {
                 run.spawned_targets = true;
@@ -108,7 +131,14 @@ fn autopilot(
                 commands.entity(entity).insert(Invulnerable(60.0));
                 let center = p.translation.truncate();
                 for dx in [20.0, 30.0] {
-                    crate::enemy::spawn_enemy(&mut commands, &atlas, crate::dungeon::MonsterKind::Knight, 1, center + Vec2::new(dx, 0.0), None);
+                    crate::enemy::spawn_enemy(
+                        &mut commands,
+                        &atlas,
+                        crate::dungeon::MonsterKind::Knight,
+                        1,
+                        center + Vec2::new(dx, 0.0),
+                        None,
+                    );
                 }
             }
             if t > 6.5 && run.phase == 0 {
@@ -119,7 +149,10 @@ fn autopilot(
                     let _ = floor;
                     p.translation.x = st.translation.x;
                     p.translation.y = st.translation.y - 18.0;
-                    commands.insert_resource(ShopContext { shopkeeper, selected: 1 });
+                    commands.insert_resource(ShopContext {
+                        shopkeeper,
+                        selected: 1,
+                    });
                     next.set(GameState::Shop);
                 }
             }
@@ -149,20 +182,25 @@ fn autopilot(
     }
 }
 
-fn take_screenshots(mut commands: Commands, mut run: ResMut<ScreenshotRun>, mut exit: MessageWriter<AppExit>) {
+fn take_screenshots(
+    mut commands: Commands,
+    mut run: ResMut<ScreenshotRun>,
+    mut exit: MessageWriter<AppExit>,
+) {
     if let Some(&(at, name)) = run.shots.first()
         && run.elapsed >= at
     {
         run.shots.remove(0);
         let path = run.dir.join(name);
         info!("saving screenshot to {}", path.display());
-        commands.spawn(Screenshot::primary_window()).observe(save_to_disk(path));
+        commands
+            .spawn(Screenshot::primary_window())
+            .observe(save_to_disk(path));
     }
     if run.shots.is_empty() && run.elapsed > 13.0 {
         exit.write(AppExit::Success);
     }
 }
-
 
 /// Logs anything that could silently break rendering: non-finite transforms
 /// or sprite colours.
@@ -172,7 +210,12 @@ fn diagnostics(
     transforms: Query<(Entity, &Transform, Option<&Sprite>, Option<&Name>)>,
     camera: Query<&Transform, With<GameCamera>>,
     hero: Res<Hero>,
-    burning: Query<(Entity, &crate::combat::Burning, Option<&crate::enemy::Enemy>, Option<&Player>)>,
+    burning: Query<(
+        Entity,
+        &crate::combat::Burning,
+        Option<&crate::enemy::Enemy>,
+        Option<&Player>,
+    )>,
     monsters: Query<&Health, With<crate::enemy::Enemy>>,
 ) {
     *last += time.delta_secs();
@@ -190,14 +233,28 @@ fn diagnostics(
         if !finite || !color_ok {
             bad += 1;
             if bad <= 3 {
-                info!("bad entity {entity:?}: {:?} color_ok={color_ok}", t.translation);
+                info!(
+                    "bad entity {entity:?}: {:?} color_ok={color_ok}",
+                    t.translation
+                );
             }
         }
     }
     let cam = camera.single().map(|t| t.translation).unwrap_or_default();
     let monster_hp: i32 = monsters.iter().map(|h| h.hp).sum();
     for (e, b, enemy, player) in &burning {
-        info!("  burning {e:?} left={:.2} enemy={:?} player={}", b.left, enemy.map(|x| x.kind), player.is_some());
+        info!(
+            "  burning {e:?} left={:.2} enemy={:?} player={}",
+            b.left,
+            enemy.map(|x| x.kind),
+            player.is_some()
+        );
     }
-    info!("diag t={:.1} entities={} bad={bad} kills={} burning={} monster_hp={monster_hp} cam={cam:?}", time.elapsed_secs(), transforms.iter().count(), hero.kills, burning.iter().count());
+    info!(
+        "diag t={:.1} entities={} bad={bad} kills={} burning={} monster_hp={monster_hp} cam={cam:?}",
+        time.elapsed_secs(),
+        transforms.iter().count(),
+        hero.kills,
+        burning.iter().count()
+    );
 }

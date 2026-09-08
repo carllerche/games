@@ -196,12 +196,22 @@ impl Dungeon {
 
     /// A random free floor tile inside `room`, at least `keep_clear` tiles
     /// away from `avoid`.
-    fn free_tile(&self, room: &Room, avoid: &[IVec2], keep_clear: i32, rng: &mut StdRng) -> Option<IVec2> {
+    fn free_tile(
+        &self,
+        room: &Room,
+        avoid: &[IVec2],
+        keep_clear: i32,
+        rng: &mut StdRng,
+    ) -> Option<IVec2> {
         let candidates: Vec<IVec2> = self
             .floor_tiles_in(room)
             .into_iter()
             .filter(|p| !self.occupied(*p))
-            .filter(|p| avoid.iter().all(|a| (*a - *p).abs().max_element() > keep_clear))
+            .filter(|p| {
+                avoid
+                    .iter()
+                    .all(|a| (*a - *p).abs().max_element() > keep_clear)
+            })
             .collect();
         candidates.choose(rng).copied()
     }
@@ -306,7 +316,9 @@ fn connect_rooms(d: &mut Dungeon, rng: &mut StdRng) {
                 if !connected[j] {
                     continue;
                 }
-                let dist = (d.rooms[i].center() - d.rooms[j].center()).abs().element_sum();
+                let dist = (d.rooms[i].center() - d.rooms[j].center())
+                    .abs()
+                    .element_sum();
                 if best.is_none_or(|(b, _, _)| dist < b) {
                     best = Some((dist, i, j));
                 }
@@ -373,7 +385,11 @@ fn assign_roles(d: &mut Dungeon, rng: &mut StdRng) {
     let mut others: Vec<usize> = (0..n).filter(|&i| i != start && i != exit).collect();
     others.sort_by_key(|&i| d.rooms[i].area());
 
-    let shops = if d.floor >= 3 && rng.random_bool(0.6) { 2 } else { 1 };
+    let shops = if d.floor >= 3 && rng.random_bool(0.6) {
+        2
+    } else {
+        1
+    };
     for _ in 0..shops {
         if others.is_empty() {
             break;
@@ -403,22 +419,58 @@ fn place_secret_room(d: &mut Dungeon, rng: &mut StdRng) {
             0 => {
                 let y = rng.random_range(host.y..host.y + host.h - sh + 1);
                 let x = host.x + host.w + 1;
-                (Room { x, y, w: sw, h: sh, kind: RoomKind::Secret }, IVec2::new(host.x + host.w, y + sh / 2))
+                (
+                    Room {
+                        x,
+                        y,
+                        w: sw,
+                        h: sh,
+                        kind: RoomKind::Secret,
+                    },
+                    IVec2::new(host.x + host.w, y + sh / 2),
+                )
             }
             1 => {
                 let y = rng.random_range(host.y..host.y + host.h - sh + 1);
                 let x = host.x - sw - 1;
-                (Room { x, y, w: sw, h: sh, kind: RoomKind::Secret }, IVec2::new(host.x - 1, y + sh / 2))
+                (
+                    Room {
+                        x,
+                        y,
+                        w: sw,
+                        h: sh,
+                        kind: RoomKind::Secret,
+                    },
+                    IVec2::new(host.x - 1, y + sh / 2),
+                )
             }
             2 => {
                 let x = rng.random_range(host.x..host.x + host.w - sw + 1);
                 let y = host.y + host.h + 1;
-                (Room { x, y, w: sw, h: sh, kind: RoomKind::Secret }, IVec2::new(x + sw / 2, host.y + host.h))
+                (
+                    Room {
+                        x,
+                        y,
+                        w: sw,
+                        h: sh,
+                        kind: RoomKind::Secret,
+                    },
+                    IVec2::new(x + sw / 2, host.y + host.h),
+                )
             }
             _ => {
                 let x = rng.random_range(host.x..host.x + host.w - sw + 1);
                 let y = host.y - sh - 1;
-                (Room { x, y, w: sw, h: sh, kind: RoomKind::Secret }, IVec2::new(x + sw / 2, host.y - 1))
+                (
+                    Room {
+                        x,
+                        y,
+                        w: sw,
+                        h: sh,
+                        kind: RoomKind::Secret,
+                    },
+                    IVec2::new(x + sw / 2, host.y - 1),
+                )
             }
         };
         if room.x < 1 || room.y < 1 || room.x + room.w >= d.w - 1 || room.y + room.h >= d.h - 1 {
@@ -443,7 +495,8 @@ fn place_secret_room(d: &mut Dungeon, rng: &mut StdRng) {
         d.carve(&room, Tile::Floor);
         d.set(door, Tile::Cracked);
         let c = room.center();
-        d.spawns.push((c, Spawn::Chest(ChestLoot::Coins(30 + d.floor * 12))));
+        d.spawns
+            .push((c, Spawn::Chest(ChestLoot::Coins(30 + d.floor * 12))));
         if let Some(p) = d.free_tile(&room, &[c], 0, rng) {
             d.spawns.push((p, Spawn::Chest(ChestLoot::Potion)));
         }
@@ -468,7 +521,10 @@ fn place_traps(d: &mut Dungeon, rng: &mut StdRng) {
                 Some(RoomKind::Normal | RoomKind::Treasure) => 0.02,
                 _ => 0.0,
             };
-            if rng.random_bool(chance) && (p - d.start).abs().max_element() > 3 && (p - d.exit).abs().max_element() > 1 {
+            if rng.random_bool(chance)
+                && (p - d.start).abs().max_element() > 3
+                && (p - d.exit).abs().max_element() > 1
+            {
                 d.set(p, Tile::Spikes);
             }
         }
@@ -509,7 +565,11 @@ fn place_loot(d: &mut Dungeon, rng: &mut StdRng) {
     }
 
     for room in rooms.iter().filter(|r| r.kind == RoomKind::Treasure) {
-        for loot in [ChestLoot::Coins(20 + d.floor * 8), ChestLoot::Arrows(8), ChestLoot::Potion] {
+        for loot in [
+            ChestLoot::Coins(20 + d.floor * 8),
+            ChestLoot::Arrows(8),
+            ChestLoot::Potion,
+        ] {
             if let Some(p) = d.free_tile(room, &[], 0, rng) {
                 d.spawns.push((p, Spawn::Chest(loot)));
             }
@@ -518,7 +578,12 @@ fn place_loot(d: &mut Dungeon, rng: &mut StdRng) {
 
     let coin_rooms: Vec<&Room> = rooms
         .iter()
-        .filter(|r| matches!(r.kind, RoomKind::Normal | RoomKind::Exit | RoomKind::Treasure))
+        .filter(|r| {
+            matches!(
+                r.kind,
+                RoomKind::Normal | RoomKind::Exit | RoomKind::Treasure
+            )
+        })
         .collect();
     let coins = 6 + d.floor * 2;
     for _ in 0..coins {
@@ -561,7 +626,11 @@ fn place_monsters(d: &mut Dungeon, rng: &mut StdRng) {
         };
         let max = 2 + d.floor as i32 / 2;
         let count = (room.area() / 14).clamp(1, max) + extra + rng.random_range(0..=1);
-        let count = if room.kind == RoomKind::Boss { 2 } else { count };
+        let count = if room.kind == RoomKind::Boss {
+            2
+        } else {
+            count
+        };
         for _ in 0..count {
             let kind = *pool.choose(rng).unwrap();
             if let Some(p) = d.free_tile(room, &[d.exit], 1, rng) {
@@ -569,7 +638,8 @@ fn place_monsters(d: &mut Dungeon, rng: &mut StdRng) {
             }
         }
         // Mini-boss guarding the stairs on floors 3 and 6.
-        if room.kind == RoomKind::Exit && matches!(d.floor, 3 | 6)
+        if room.kind == RoomKind::Exit
+            && matches!(d.floor, 3 | 6)
             && let Some(p) = d.free_tile(room, &[d.exit], 1, rng)
         {
             d.spawns.push((p, Spawn::Monster(MonsterKind::Ogre)));
@@ -626,7 +696,11 @@ mod tests {
     #[test]
     fn boss_floor_has_lich_and_doors() {
         let d = generate(MAX_FLOOR, 7);
-        assert!(d.spawns.iter().any(|(_, s)| *s == Spawn::Monster(MonsterKind::Lich)));
+        assert!(
+            d.spawns
+                .iter()
+                .any(|(_, s)| *s == Spawn::Monster(MonsterKind::Lich))
+        );
         assert!(!d.boss_doors.is_empty());
     }
 }

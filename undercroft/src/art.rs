@@ -21,6 +21,16 @@ pub enum SpriteId {
     HeroDown,
     HeroUp,
     HeroSide,
+    RangerDown,
+    RangerUp,
+    RangerSide,
+    MageDown,
+    MageUp,
+    MageSide,
+    RogueDown,
+    RogueUp,
+    RogueSide,
+    Shield,
     Slime,
     Bat,
     Skeleton,
@@ -81,10 +91,20 @@ pub enum SpriteId {
 }
 
 impl SpriteId {
-    pub const ALL: [SpriteId; 60] = [
+    pub const ALL: [SpriteId; 70] = [
         Self::HeroDown,
         Self::HeroUp,
         Self::HeroSide,
+        Self::RangerDown,
+        Self::RangerUp,
+        Self::RangerSide,
+        Self::MageDown,
+        Self::MageUp,
+        Self::MageSide,
+        Self::RogueDown,
+        Self::RogueUp,
+        Self::RogueSide,
+        Self::Shield,
         Self::Slime,
         Self::Bat,
         Self::Skeleton,
@@ -186,8 +206,14 @@ enum Frame2 {
     Rows(Rows),
 }
 
+/// Palette keys swapped when a drawn sprite is recoloured: `(from, to)`.
+type Recolor = &'static [(char, char)];
+
 enum Pattern {
     Drawn(Rows, Frame2),
+    /// Another drawn sprite with some palette keys swapped, e.g. the hero
+    /// in a different tunic.
+    Recolored(SpriteId, Recolor),
     Proc(fn(&mut Cell, usize)),
 }
 
@@ -243,19 +269,11 @@ pub fn build_atlas(
 
 fn frames(id: SpriteId) -> (Cell, Cell) {
     match pattern(id) {
-        Pattern::Drawn(rows, second) => {
-            let a = paint(&rows);
-            let b = match second {
-                Frame2::Same => a,
-                Frame2::Bob => {
-                    let mut b = [[None; CELL]; CELL];
-                    b[..CELL - 1].copy_from_slice(&a[1..]);
-                    b
-                }
-                Frame2::Rows(rows) => paint(&rows),
-            };
-            (a, b)
-        }
+        Pattern::Drawn(rows, second) => drawn(&rows, second, &[]),
+        Pattern::Recolored(base, map) => match pattern(base) {
+            Pattern::Drawn(rows, second) => drawn(&rows, second, map),
+            _ => panic!("{id:?} recolours {base:?}, which is not a drawn sprite"),
+        },
         Pattern::Proc(f) => {
             let mut a = [[None; CELL]; CELL];
             let mut b = [[None; CELL]; CELL];
@@ -266,11 +284,30 @@ fn frames(id: SpriteId) -> (Cell, Cell) {
     }
 }
 
-fn paint(rows: &Rows) -> Cell {
+fn drawn(rows: &Rows, second: Frame2, map: Recolor) -> (Cell, Cell) {
+    let a = paint(rows, map);
+    let b = match second {
+        Frame2::Same => a,
+        Frame2::Bob => {
+            let mut b = [[None; CELL]; CELL];
+            b[..CELL - 1].copy_from_slice(&a[1..]);
+            b
+        }
+        Frame2::Rows(rows) => paint(&rows, map),
+    };
+    (a, b)
+}
+
+fn paint(rows: &Rows, map: Recolor) -> Cell {
     let mut cell = [[None; CELL]; CELL];
     for (y, row) in rows.iter().enumerate() {
         assert_eq!(row.len(), CELL, "sprite row {y} has wrong width: {row:?}");
         for (x, key) in row.chars().enumerate() {
+            let key = map
+                .iter()
+                .find(|(from, _)| *from == key)
+                .map(|(_, to)| *to)
+                .unwrap_or(key);
             cell[y][x] = palette::from_key(key);
         }
     }
@@ -281,7 +318,10 @@ fn paint(rows: &Rows) -> Cell {
 struct Lcg(u64);
 impl Lcg {
     fn next(&mut self) -> u32 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.0 >> 33) as u32
     }
     fn chance(&mut self, one_in: u32) -> bool {
@@ -345,7 +385,12 @@ fn wall_tile(cell: &mut Cell, frame: usize) {
 }
 
 fn wall_face_tile(cell: &mut Cell, frame: usize) {
-    bricks(cell, palette::WALL_FACE, palette::WALL_MORTAR, 91 + frame as u64);
+    bricks(
+        cell,
+        palette::WALL_FACE,
+        palette::WALL_MORTAR,
+        91 + frame as u64,
+    );
     // A lit top edge and a shadow at the base give the wall some height.
     for x in 0..CELL {
         cell[0][x] = Some(palette::LIGHT_GREY);
@@ -410,7 +455,16 @@ fn carpet_tile(cell: &mut Cell, _frame: usize) {
             cell[i][edge] = Some(palette::CARPET_TRIM);
         }
     }
-    for (x, y) in [(7, 6), (8, 6), (6, 7), (9, 7), (6, 8), (9, 8), (7, 9), (8, 9)] {
+    for (x, y) in [
+        (7, 6),
+        (8, 6),
+        (6, 7),
+        (9, 7),
+        (6, 8),
+        (9, 8),
+        (7, 9),
+        (8, 9),
+    ] {
         cell[y][x] = Some(palette::CARPET_TRIM);
     }
 }
@@ -449,10 +503,19 @@ fn digit_tile(cell: &mut Cell, digit: usize) {
     }
 }
 
+/// Green tunic, red hair.
+const RANGER: Recolor = &[('b', 'g'), ('B', 'G'), ('h', 'o')];
+/// Purple robes, grey hair.
+const MAGE: Recolor = &[('b', 'p'), ('B', 'P'), ('h', 'W'), ('N', 'P')];
+/// Dark leathers and a dark hood.
+const ROGUE: Recolor = &[('b', 'E'), ('B', 'd'), ('h', 'D')];
+
 fn pattern(id: SpriteId) -> Pattern {
     use Frame2::*;
     use Pattern::*;
     match id {
+        // The heroes hold a sword; the shield is a separate sprite that
+        // follows them (see `player::HeroShield`).
         SpriteId::HeroDown => Drawn(
             [
                 "................",
@@ -466,11 +529,11 @@ fn pattern(id: SpriteId) -> Pattern {
                 "....kssSSssk....",
                 ".....kbbbbk.....",
                 "...kbbBbbBbbk...",
-                "..ksbbbbbbbbsk..",
-                "..kskbbbbbbksk..",
-                "....kBBBBBBk....",
-                "....kNNkkNNk....",
-                ".....kk..kk.....",
+                ".kysbbbbbbbbsk..",
+                ".kWskbbbbbbksk..",
+                ".kWkkBBBBBBk....",
+                ".kWkkNNkkNNk....",
+                "..k..kk..kk.....",
             ],
             Bob,
         ),
@@ -487,11 +550,11 @@ fn pattern(id: SpriteId) -> Pattern {
                 "....ksssssk.....",
                 ".....kbbbbk.....",
                 "...kbbbbbbbbk...",
-                "..ksbbbbbbbbsk..",
-                "..kskbbbbbbksk..",
-                "....kBBBBBBk....",
-                "....kNNkkNNk....",
-                ".....kk..kk.....",
+                "..ksbbbbbbbbsyk.",
+                "..kskbbbbbbksWk.",
+                "....kBBBBBBkkWk.",
+                "....kNNkkNNkkWk.",
+                ".....kk..kk..k..",
             ],
             Bob,
         ),
@@ -508,13 +571,61 @@ fn pattern(id: SpriteId) -> Pattern {
                 ".....ksSSsk.....",
                 ".....kbbbbk.....",
                 "....kbbbbbbk....",
-                "....kbbbbbbkk...",
-                "....kbbbbbksk...",
-                "....kBBBBBBk....",
+                "....kbbbbbbkkkkk",
+                "....kbbbbbksyWWW",
+                "....kBBBBBBkkkkk",
                 ".....kNNNNk.....",
                 ".....kNkkNk.....",
             ],
             Bob,
+        ),
+        SpriteId::RangerDown => Recolored(SpriteId::HeroDown, RANGER),
+        SpriteId::RangerUp => Recolored(SpriteId::HeroUp, RANGER),
+        SpriteId::RangerSide => Recolored(SpriteId::HeroSide, RANGER),
+        SpriteId::MageDown => Recolored(SpriteId::HeroDown, MAGE),
+        SpriteId::MageUp => Recolored(SpriteId::HeroUp, MAGE),
+        SpriteId::MageSide => Recolored(SpriteId::HeroSide, MAGE),
+        SpriteId::RogueDown => Recolored(SpriteId::HeroDown, ROGUE),
+        SpriteId::RogueUp => Recolored(SpriteId::HeroUp, ROGUE),
+        SpriteId::RogueSide => Recolored(SpriteId::HeroSide, ROGUE),
+        // Frame 0: the shield carried at the hero's side. Frame 1: raised.
+        SpriteId::Shield => Drawn(
+            [
+                "................",
+                "................",
+                "................",
+                "................",
+                "................",
+                ".....kkkkkk.....",
+                "....kWWeeWWk....",
+                "....kWeyyeWk....",
+                "....kWyyyyWk....",
+                ".....kWyyWk.....",
+                "......kWWk......",
+                ".......kk.......",
+                "................",
+                "................",
+                "................",
+                "................",
+            ],
+            Rows([
+                "................",
+                "................",
+                "................",
+                "....kkkkkkkk....",
+                "...kWWWeeWWWk...",
+                "...kWeeyyeeWk...",
+                "...kWeyyyyeWk...",
+                "...kWyyyyyyWk...",
+                "...kWeyyyyeWk...",
+                "....kWeyyeWk....",
+                ".....kWyyWk.....",
+                "......kWWk......",
+                ".......kk.......",
+                "................",
+                "................",
+                "................",
+            ]),
         ),
         SpriteId::Slime => Drawn(
             [

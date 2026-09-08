@@ -23,6 +23,15 @@ you can always retreat into a corridor. Floors 3 and 6 put an Ogre between you a
 stairs. Floor 8 is the Lich's arena: the doors seal behind you and the exit
 stays shut until it is destroyed.
 
+- **Heroes**: before each run you pick a class. The Knight is sturdy and can
+  Shield Bash through a crowd, the Ranger starts with a bow and can loose an
+  Arrow Storm, the Mage is frail but sees far and casts a freezing Frost Nova,
+  and the Rogue is quick and Shadow Steps past danger for a triple-damage
+  strike. F triggers the ability; each has its own cooldown shown in the HUD.
+- **Shield**: every hero carries a sword and a shield. Hold L to raise the
+  shield. Hits and arrows from the front are blocked for a little energy; with
+  no energy left the guard breaks. You shuffle slowly while blocking and keep
+  facing the same way, so you can back off from a monster without turning.
 - **Sprint** by holding Shift. It is very fast but drains the energy bar, which
   refills after a short pause. The bow costs a little energy too.
 - **XP** from kills raises your character level. Levels add a little health and
@@ -43,12 +52,14 @@ stays shut until it is destroyed.
 | Action              | Keyboard          | Gamepad              |
 | ------------------- | ----------------- | -------------------- |
 | Move                | WASD / arrows     | Left stick / d-pad   |
-| Sprint              | Shift             | Right trigger        |
+| Sprint              | Shift             | Triggers             |
 | Sword               | J or Space        | A / South            |
 | Bow                 | K                 | X / West             |
+| Block (hold)        | L                 | Left bumper          |
+| Special ability     | F                 | Right bumper         |
 | Drink potion        | Q                 | Y / North            |
 | Interact / trade    | E                 | B / East             |
-| Cycle arrow type    | Tab               | Left bumper          |
+| Cycle arrow type    | Tab               | Select               |
 | Pause               | Esc               | Start                |
 | Menus               | Arrows + Enter    | D-pad + A            |
 

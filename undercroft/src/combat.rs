@@ -62,10 +62,17 @@ pub fn apply_element(commands: &mut Commands, entity: Entity, element: Element) 
     let mut e = commands.entity(entity);
     match element {
         Element::Fire => {
-            e.insert(Burning { left: BURN_TIME, tick: BURN_TICK, spreads: true });
+            e.insert(Burning {
+                left: BURN_TIME,
+                tick: BURN_TICK,
+                spreads: true,
+            });
         }
         Element::Poison => {
-            e.insert(Poisoned { left: POISON_TIME, tick: POISON_TICK });
+            e.insert(Poisoned {
+                left: POISON_TIME,
+                tick: POISON_TICK,
+            });
         }
         Element::Frost => {
             e.insert(Frozen { left: FREEZE_TIME });
@@ -116,6 +123,8 @@ pub struct DamagePlayer {
     pub from: Vec2,
     /// Damage over time: ignores and does not grant invulnerability, no knockback.
     pub dot: bool,
+    /// A raised shield facing the attacker stops it. Spikes come from below.
+    pub blockable: bool,
     pub element: Option<Element>,
 }
 
@@ -127,9 +136,19 @@ impl Plugin for CombatPlugin {
             .add_message::<DamagePlayer>()
             .add_systems(
                 Update,
-                (sword_hits, projectiles, contact_damage, spikes, status_effects).in_set(Step::Hits),
+                (
+                    sword_hits,
+                    projectiles,
+                    contact_damage,
+                    spikes,
+                    status_effects,
+                )
+                    .in_set(Step::Hits),
             )
-            .add_systems(Update, (apply_enemy_damage, apply_player_damage).in_set(Step::Damage))
+            .add_systems(
+                Update,
+                (apply_enemy_damage, apply_player_damage).in_set(Step::Damage),
+            )
             .add_systems(
                 Update,
                 (
@@ -150,7 +169,14 @@ impl Plugin for CombatPlugin {
 // Spawning helpers
 // ---------------------------------------------------------------------------
 
-pub fn spawn_particles(commands: &mut Commands, pos: Vec2, color: Color, count: usize, speed: f32, life: f32) {
+pub fn spawn_particles(
+    commands: &mut Commands,
+    pos: Vec2,
+    color: Color,
+    count: usize,
+    speed: f32,
+    life: f32,
+) {
     let mut rng = rand::rng();
     for _ in 0..count {
         let angle = rng.random_range(0.0..std::f32::consts::TAU);
@@ -170,7 +196,13 @@ pub fn spawn_particles(commands: &mut Commands, pos: Vec2, color: Color, count: 
     }
 }
 
-pub fn spawn_damage_number(commands: &mut Commands, atlas: &Atlas, pos: Vec2, amount: i32, color: Color) {
+pub fn spawn_damage_number(
+    commands: &mut Commands,
+    atlas: &Atlas,
+    pos: Vec2,
+    amount: i32,
+    color: Color,
+) {
     let digits: Vec<u32> = amount
         .max(0)
         .to_string()
@@ -192,7 +224,10 @@ pub fn spawn_damage_number(commands: &mut Commands, atlas: &Atlas, pos: Vec2, am
             for (i, d) in digits.iter().enumerate() {
                 let mut sprite = atlas.sprite(SpriteId::digit(*d), 0);
                 sprite.color = color;
-                p.spawn((sprite, Transform::from_xyz(i as f32 * 4.0 - width / 2.0 + 2.0, 0.0, 0.0)));
+                p.spawn((
+                    sprite,
+                    Transform::from_xyz(i as f32 * 4.0 - width / 2.0 + 2.0, 0.0, 0.0),
+                ));
             }
         });
 }
@@ -222,7 +257,8 @@ pub fn spawn_projectile(
         },
         Velocity(dir * speed),
         Lifetime(3.0),
-        Transform::from_translation(pos.extend(layer::PROJECTILE)).with_rotation(Quat::from_rotation_z(dir.to_angle())),
+        Transform::from_translation(pos.extend(layer::PROJECTILE))
+            .with_rotation(Quat::from_rotation_z(dir.to_angle())),
     ));
     if id == SpriteId::Bolt {
         entity.insert((
@@ -300,7 +336,9 @@ fn sword_hits(
         for dy in -1..=1 {
             for dx in -1..=1 {
                 let p = t + IVec2::new(dx, dy);
-                if floor.dungeon.get(p) == Tile::Cracked && tile_center(p).distance(center) < swing.radius + 9.0 {
+                if floor.dungeon.get(p) == Tile::Cracked
+                    && tile_center(p).distance(center) < swing.radius + 9.0
+                {
                     floor.dungeon.set(p, Tile::Rubble);
                     for (e, c) in &cracked {
                         if c.0 == p {
@@ -312,7 +350,14 @@ fn sword_hits(
                         atlas.sprite(SpriteId::Rubble, 0),
                         Transform::from_translation(tile_center(p).extend(layer::FLOOR + 0.1)),
                     ));
-                    spawn_particles(&mut commands, tile_center(p), crate::palette::GREY, 16, 70.0, 0.5);
+                    spawn_particles(
+                        &mut commands,
+                        tile_center(p),
+                        crate::palette::GREY,
+                        16,
+                        70.0,
+                        0.5,
+                    );
                     sfx.write(PlaySfx(SfxKind::Break));
                     shake.add(0.35);
                     notify.write(Notify("The wall crumbles, revealing a secret room!".into()));
@@ -374,6 +419,7 @@ fn projectiles(
                         amount: projectile.damage,
                         from: pos - vel.0.normalize_or_zero() * 8.0,
                         dot: false,
+                        blockable: true,
                         element: projectile.element,
                     });
                     commands.entity(entity).despawn();
@@ -390,7 +436,9 @@ fn contact_damage(
     mut damage_player: MessageWriter<DamagePlayer>,
     mut damage_enemy: MessageWriter<DamageEnemy>,
 ) {
-    let Ok((pt, player)) = player.single() else { return };
+    let Ok((pt, player)) = player.single() else {
+        return;
+    };
     let ppos = pt.translation.truncate();
     for (entity, t, enemy) in &enemies {
         if enemy.contact_damage == 0 || !enemy.vulnerable {
@@ -412,6 +460,7 @@ fn contact_damage(
                     amount: enemy.contact_damage,
                     from: epos,
                     dot: false,
+                    blockable: true,
                     element: None,
                 });
             }
@@ -432,7 +481,8 @@ fn spikes(
         let phase = spike.timer % 3.0;
         let up = phase < 1.1;
         let center = tile_center(spike.tile);
-        if up && !spike.up
+        if up
+            && !spike.up
             && let Some(p) = ppos
             && p.distance(center) < 140.0
         {
@@ -440,11 +490,15 @@ fn spikes(
         }
         spike.up = up;
         anim.frame = if up { 1 } else { 0 };
-        if up && let Some(p) = ppos && (p - center).abs().max_element() < 7.0 {
+        if up
+            && let Some(p) = ppos
+            && (p - center).abs().max_element() < 7.0
+        {
             damage_player.write(DamagePlayer {
                 amount: 3,
                 from: center + Vec2::new(0.0, -4.0),
                 dot: false,
+                blockable: false,
                 element: None,
             });
         }
@@ -459,7 +513,13 @@ fn spikes(
 fn status_effects(
     mut commands: Commands,
     time: Res<Time>,
-    mut burning: Query<(Entity, &Transform, &mut Burning, Option<&Enemy>, Option<&Player>)>,
+    mut burning: Query<(
+        Entity,
+        &Transform,
+        &mut Burning,
+        Option<&Enemy>,
+        Option<&Player>,
+    )>,
     mut poisoned: Query<(Entity, &Transform, &mut Poisoned, Option<&Enemy>), Without<Burning>>,
     mut poisoned_burning: Query<(Entity, &Transform, &mut Poisoned, Option<&Enemy>), With<Burning>>,
     mut frozen: Query<(Entity, &Transform, &mut Frozen)>,
@@ -476,7 +536,11 @@ fn status_effects(
         burn.tick -= dt;
         if rng.random_bool((dt * 25.0).min(1.0) as f64) {
             let p = pos + Vec2::new(rng.random_range(-4.0..4.0), rng.random_range(-2.0..6.0));
-            let color = if rng.random_bool(0.5) { crate::palette::ORANGE } else { crate::palette::YELLOW };
+            let color = if rng.random_bool(0.5) {
+                crate::palette::ORANGE
+            } else {
+                crate::palette::YELLOW
+            };
             commands.spawn((
                 FloorEntity,
                 Particle {
@@ -485,7 +549,10 @@ fn status_effects(
                     gravity: 0.0,
                 },
                 Lifetime(0.35),
-                Sprite::from_color(color, Vec2::splat(if rng.random_bool(0.3) { 2.0 } else { 1.0 })),
+                Sprite::from_color(
+                    color,
+                    Vec2::splat(if rng.random_bool(0.3) { 2.0 } else { 1.0 }),
+                ),
                 Transform::from_translation(p.extend(layer::PARTICLE)),
             ));
         }
@@ -503,8 +570,14 @@ fn status_effects(
                 // Fire spreads to monsters standing close by.
                 if burn.spreads {
                     for (other, ot, oe) in &enemies {
-                        if other != entity && ot.translation.truncate().distance(pos) < oe.radius + 10.0 {
-                            commands.entity(other).insert(Burning { left: BURN_TIME, tick: BURN_TICK, spreads: false });
+                        if other != entity
+                            && ot.translation.truncate().distance(pos) < oe.radius + 10.0
+                        {
+                            commands.entity(other).insert(Burning {
+                                left: BURN_TIME,
+                                tick: BURN_TICK,
+                                spreads: false,
+                            });
                         }
                     }
                 }
@@ -513,6 +586,7 @@ fn status_effects(
                     amount: 1,
                     from: pos,
                     dot: true,
+                    blockable: false,
                     element: None,
                 });
             }
@@ -522,48 +596,50 @@ fn status_effects(
         }
     }
 
-    let mut poison_tick = |entity: Entity, transform: &Transform, poison: &mut Poisoned, enemy: Option<&Enemy>| {
-        let pos = transform.translation.truncate();
-        poison.left -= dt;
-        poison.tick -= dt;
-        if rng.random_bool((dt * 8.0).min(1.0) as f64) {
-            let p = pos + Vec2::new(rng.random_range(-5.0..5.0), rng.random_range(-4.0..6.0));
-            commands.spawn((
-                FloorEntity,
-                Particle {
-                    vel: Vec2::new(0.0, rng.random_range(8.0..18.0)),
-                    drag: 0.98,
-                    gravity: 0.0,
-                },
-                Lifetime(0.6),
-                Sprite::from_color(crate::palette::LIME, Vec2::splat(1.0)),
-                Transform::from_translation(p.extend(layer::PARTICLE)),
-            ));
-        }
-        if poison.tick <= 0.0 {
-            poison.tick = POISON_TICK;
-            if enemy.is_some() {
-                damage_enemy.write(DamageEnemy {
-                    target: entity,
-                    amount: 1,
-                    from: pos,
-                    knockback: 0.0,
-                    arrow: false,
-                    element: None,
-                });
-            } else {
-                damage_player.write(DamagePlayer {
-                    amount: 1,
-                    from: pos,
-                    dot: true,
-                    element: None,
-                });
+    let mut poison_tick =
+        |entity: Entity, transform: &Transform, poison: &mut Poisoned, enemy: Option<&Enemy>| {
+            let pos = transform.translation.truncate();
+            poison.left -= dt;
+            poison.tick -= dt;
+            if rng.random_bool((dt * 8.0).min(1.0) as f64) {
+                let p = pos + Vec2::new(rng.random_range(-5.0..5.0), rng.random_range(-4.0..6.0));
+                commands.spawn((
+                    FloorEntity,
+                    Particle {
+                        vel: Vec2::new(0.0, rng.random_range(8.0..18.0)),
+                        drag: 0.98,
+                        gravity: 0.0,
+                    },
+                    Lifetime(0.6),
+                    Sprite::from_color(crate::palette::LIME, Vec2::splat(1.0)),
+                    Transform::from_translation(p.extend(layer::PARTICLE)),
+                ));
             }
-        }
-        if poison.left <= 0.0 {
-            commands.entity(entity).remove::<Poisoned>();
-        }
-    };
+            if poison.tick <= 0.0 {
+                poison.tick = POISON_TICK;
+                if enemy.is_some() {
+                    damage_enemy.write(DamageEnemy {
+                        target: entity,
+                        amount: 1,
+                        from: pos,
+                        knockback: 0.0,
+                        arrow: false,
+                        element: None,
+                    });
+                } else {
+                    damage_player.write(DamagePlayer {
+                        amount: 1,
+                        from: pos,
+                        dot: true,
+                        blockable: false,
+                        element: None,
+                    });
+                }
+            }
+            if poison.left <= 0.0 {
+                commands.entity(entity).remove::<Poisoned>();
+            }
+        };
     for (entity, transform, mut poison, enemy) in &mut poisoned {
         poison_tick(entity, transform, &mut poison, enemy);
     }
@@ -574,7 +650,8 @@ fn status_effects(
     for (entity, transform, mut ice) in &mut frozen {
         ice.left -= dt;
         if rng.random_bool((dt * 6.0).min(1.0) as f64) {
-            let pos = transform.translation.truncate() + Vec2::new(rng.random_range(-6.0..6.0), rng.random_range(-6.0..6.0));
+            let pos = transform.translation.truncate()
+                + Vec2::new(rng.random_range(-6.0..6.0), rng.random_range(-6.0..6.0));
             commands.spawn((
                 FloorEntity,
                 Particle {
@@ -589,7 +666,14 @@ fn status_effects(
         }
         if ice.left <= 0.0 {
             commands.entity(entity).remove::<Frozen>();
-            spawn_particles(&mut commands, transform.translation.truncate(), crate::palette::CYAN, 8, 40.0, 0.4);
+            spawn_particles(
+                &mut commands,
+                transform.translation.truncate(),
+                crate::palette::CYAN,
+                8,
+                40.0,
+                0.4,
+            );
         }
     }
 }
@@ -673,7 +757,10 @@ fn apply_enemy_damage(
         if levels > 0 {
             sfx.write(PlaySfx(SfxKind::LevelUp));
             banner.write(Banner(format!("LEVEL {}", hero.level)));
-            notify.write(Notify(format!("Level {}! Max health and energy increased.", hero.level)));
+            notify.write(Notify(format!(
+                "Level {}! Max health and energy increased.",
+                hero.level
+            )));
             if let Ok(mut h) = player.single_mut() {
                 h.hp = (h.hp + 5).min(hero.max_hp());
             }
@@ -687,21 +774,36 @@ fn apply_enemy_damage(
         let coins = rng.random_range(enemy.coins.0..=enemy.coins.1);
         for i in 0..coins {
             let value = if boss.is_some() { 5 } else { 1 };
-            let angle = i as f32 / coins.max(1) as f32 * std::f32::consts::TAU + rng.random_range(0.0..1.0);
+            let angle =
+                i as f32 / coins.max(1) as f32 * std::f32::consts::TAU + rng.random_range(0.0..1.0);
             let vel = Vec2::from_angle(angle) * rng.random_range(40.0..90.0);
             spawn_pickup(&mut commands, &atlas, pos, PickupKind::Coin(value), vel);
         }
         if rng.random_bool(0.07) {
-            spawn_pickup(&mut commands, &atlas, pos, PickupKind::Potion, Vec2::new(0.0, 30.0));
+            spawn_pickup(
+                &mut commands,
+                &atlas,
+                pos,
+                PickupKind::Potion,
+                Vec2::new(0.0, 30.0),
+            );
         }
         if hero.bow.is_some() && rng.random_bool(0.15) {
-            spawn_pickup(&mut commands, &atlas, pos, PickupKind::Arrows(3), Vec2::new(20.0, 20.0));
+            spawn_pickup(
+                &mut commands,
+                &atlas,
+                pos,
+                PickupKind::Arrows(3),
+                Vec2::new(20.0, 20.0),
+            );
         }
 
         if enemy.kind == crate::dungeon::MonsterKind::Lich {
             sfx.write(PlaySfx(SfxKind::Victory));
             banner.write(Banner("THE LICH FALLS".into()));
-            notify.write(Notify("The seal is broken. Take the stairs to escape!".into()));
+            notify.write(Notify(
+                "The seal is broken. Take the stairs to escape!".into(),
+            ));
             for p in floor.dungeon.boss_doors.clone() {
                 floor.dungeon.set(p, Tile::Floor);
             }
@@ -713,12 +815,20 @@ fn apply_enemy_damage(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn apply_player_damage(
     mut commands: Commands,
     atlas: Res<Atlas>,
     mut reader: MessageReader<DamagePlayer>,
-    mut player: Query<(Entity, &Transform, &mut Health, Option<&Invulnerable>), With<Player>>,
+    mut player: Query<(
+        Entity,
+        &Transform,
+        &Facing,
+        &mut Player,
+        &mut Energy,
+        &mut Health,
+        Option<&Invulnerable>,
+    )>,
     mut hero: ResMut<Hero>,
     mut sfx: MessageWriter<PlaySfx>,
     mut shake: ResMut<Shake>,
@@ -726,7 +836,9 @@ fn apply_player_damage(
     mut banner: MessageWriter<Banner>,
     mut next: ResMut<NextState<GameState>>,
 ) {
-    let Ok((entity, transform, mut health, invulnerable)) = player.single_mut() else {
+    let Ok((entity, transform, facing, mut player, mut energy, mut health, invulnerable)) =
+        player.single_mut()
+    else {
         reader.clear();
         return;
     };
@@ -740,17 +852,51 @@ fn apply_player_damage(
     let mut total = 0;
     for msg in messages.iter().filter(|m| m.dot) {
         total += msg.amount;
-        spawn_damage_number(&mut commands, &atlas, pos, msg.amount, crate::palette::ORANGE);
+        spawn_damage_number(
+            &mut commands,
+            &atlas,
+            pos,
+            msg.amount,
+            crate::palette::ORANGE,
+        );
     }
+    // A charging Knight cannot be hurt.
+    let charging = player.bash_left > 0.0;
     if let Some(msg) = messages.iter().filter(|m| !m.dot).max_by_key(|m| m.amount)
         && invulnerable.is_none()
+        && !charging
     {
+        let to_attacker = (msg.from - pos).normalize_or_zero();
+        let guarded = msg.blockable && player.blocking && to_attacker.dot(facing.0) > 0.3;
+        if guarded && player.guard_timer > 0.0 {
+            // Still braced from the last block.
+            return;
+        }
+        if guarded && energy.cur >= hero.block_cost() {
+            energy.cur -= hero.block_cost();
+            energy.since_use = 0.0;
+            player.guard_timer = 0.35;
+            let shield = pos + facing.0 * 8.0;
+            spawn_particles(&mut commands, shield, crate::palette::WHITE, 5, 70.0, 0.3);
+            spawn_particles(&mut commands, shield, crate::palette::YELLOW, 3, 50.0, 0.25);
+            commands
+                .entity(entity)
+                .insert(Knockback(-to_attacker * 70.0));
+            sfx.write(PlaySfx(SfxKind::Block));
+            shake.add(0.15);
+            return;
+        }
+        if guarded {
+            notify.write(Notify("Too tired to hold the shield up!".into()));
+        }
         let amount = (msg.amount - hero.armor_reduction()).max(1);
         total += amount;
         let dir = (pos - msg.from).normalize_or_zero();
-        commands
-            .entity(entity)
-            .insert((Invulnerable(hero.invuln_time()), HitFlash(0.1), Knockback(dir * 170.0)));
+        commands.entity(entity).insert((
+            Invulnerable(hero.invuln_time()),
+            HitFlash(0.1),
+            Knockback(dir * 170.0),
+        ));
         spawn_damage_number(&mut commands, &atlas, pos, amount, crate::palette::RED);
         spawn_particles(&mut commands, pos, crate::palette::RED, 6, 60.0, 0.4);
         sfx.write(PlaySfx(SfxKind::Hurt));
@@ -774,7 +920,9 @@ fn apply_player_damage(
             spawn_particles(&mut commands, pos, crate::palette::ORANGE, 30, 120.0, 0.8);
             sfx.write(PlaySfx(SfxKind::LevelUp));
             banner.write(Banner("REBORN".into()));
-            notify.write(Notify("The Phoenix Feather burns away and you rise again!".into()));
+            notify.write(Notify(
+                "The Phoenix Feather burns away and you rise again!".into(),
+            ));
             commands.entity(entity).insert(Invulnerable(2.0));
         } else {
             sfx.write(PlaySfx(SfxKind::Death));
@@ -796,7 +944,11 @@ fn tick_hit_flash(mut commands: Commands, time: Res<Time>, mut q: Query<(Entity,
     }
 }
 
-fn tick_invulnerable(mut commands: Commands, time: Res<Time>, mut q: Query<(Entity, &mut Invulnerable)>) {
+fn tick_invulnerable(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut q: Query<(Entity, &mut Invulnerable)>,
+) {
     for (e, mut inv) in &mut q {
         inv.0 -= time.delta_secs();
         if inv.0 <= 0.0 {
@@ -833,7 +985,10 @@ fn tick_lifetime(mut commands: Commands, time: Res<Time>, mut q: Query<(Entity, 
     }
 }
 
-fn move_particles(time: Res<Time>, mut q: Query<(&mut Transform, &mut Particle, &Lifetime, &mut Sprite)>) {
+fn move_particles(
+    time: Res<Time>,
+    mut q: Query<(&mut Transform, &mut Particle, &Lifetime, &mut Sprite)>,
+) {
     let dt = time.delta_secs();
     for (mut transform, mut particle, life, mut sprite) in &mut q {
         transform.translation += (particle.vel * dt).extend(0.0);

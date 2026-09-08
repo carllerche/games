@@ -43,7 +43,10 @@ impl Plugin for LightingPlugin {
         embedded_asset!(app, "shaders/darkness.wgsl");
         app.add_plugins(Material2dPlugin::<DarknessMaterial>::default())
             .add_systems(Startup, spawn_overlay)
-            .add_systems(PostUpdate, update_lights.before(TransformSystems::Propagate));
+            .add_systems(
+                PostUpdate,
+                update_lights.before(TransformSystems::Propagate),
+            );
     }
 }
 
@@ -75,9 +78,13 @@ fn update_lights(
     mut materials: ResMut<Assets<DarknessMaterial>>,
 ) {
     let Ok(cam) = camera.single() else { return };
-    let Ok((mut transform, handle)) = overlay.single_mut() else { return };
+    let Ok((mut transform, handle)) = overlay.single_mut() else {
+        return;
+    };
     transform.translation = cam.translation.truncate().extend(layer::DARKNESS);
-    let Some(mut material) = materials.get_mut(&handle.0) else { return };
+    let Some(mut material) = materials.get_mut(&handle.0) else {
+        return;
+    };
 
     let t = time.elapsed_secs();
     let cam_pos = cam.translation.truncate();
@@ -86,7 +93,9 @@ fn update_lights(
         .map(|(gt, light)| {
             let pos = gt.translation().truncate();
             let phase = pos.x * 0.37 + pos.y * 0.61;
-            let flicker = 1.0 + light.flicker * ((t * 9.0 + phase).sin() * 0.6 + (t * 23.0 + phase * 2.0).sin() * 0.4);
+            let flicker = 1.0
+                + light.flicker
+                    * ((t * 9.0 + phase).sin() * 0.6 + (t * 23.0 + phase * 2.0).sin() * 0.4);
             let rgb = light.color.to_linear();
             (
                 pos.distance_squared(cam_pos),
@@ -102,7 +111,10 @@ fn update_lights(
         material.colors[i] = *c;
     }
     let ambient = match (state.get(), &floor) {
-        (GameState::Title | GameState::GameOver | GameState::Victory, _) => 0.0,
+        (
+            GameState::Title | GameState::ClassSelect | GameState::GameOver | GameState::Victory,
+            _,
+        ) => 0.0,
         (_, Some(f)) => (0.82 + f.dungeon.floor as f32 * 0.015).min(0.94),
         _ => 0.85,
     };

@@ -40,7 +40,11 @@ impl Explored {
     }
 
     fn is_seen(&self, p: IVec2) -> bool {
-        p.x >= 0 && p.y >= 0 && p.x < self.w && p.y < self.h && self.seen[(p.y * self.w + p.x) as usize]
+        p.x >= 0
+            && p.y >= 0
+            && p.x < self.w
+            && p.y < self.h
+            && self.seen[(p.y * self.w + p.x) as usize]
     }
 }
 
@@ -75,6 +79,8 @@ struct KeyText;
 #[derive(Component)]
 struct GearText;
 #[derive(Component)]
+struct SpecialText;
+#[derive(Component)]
 struct FloorText;
 #[derive(Component)]
 struct MinimapNode;
@@ -87,11 +93,17 @@ pub struct HudPlugin;
 
 impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, build_hud)
-            .add_systems(
-                Update,
-                (hud_visibility, update_hud, update_minimap, messages, banners),
-            );
+        app.add_systems(Startup, build_hud).add_systems(
+            Update,
+            (
+                hud_visibility,
+                update_hud,
+                update_special,
+                update_minimap,
+                messages,
+                banners,
+            ),
+        );
     }
 }
 
@@ -106,7 +118,7 @@ pub fn text(s: impl Into<String>, size: f32, color: Color) -> impl Bundle {
     )
 }
 
-fn icon(atlas: &Atlas, id: SpriteId, size: f32) -> impl Bundle {
+pub fn icon(atlas: &Atlas, id: SpriteId, size: f32) -> impl Bundle {
     (
         ImageNode {
             image: atlas.image.clone(),
@@ -180,68 +192,67 @@ fn build_hud(mut commands: Commands, atlas: Res<Atlas>, mut images: ResMut<Asset
         ))
         .with_children(|root| {
             // Top-left: vitals and inventory.
-            root.spawn((
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: Val::Px(16.0),
-                    top: Val::Px(12.0),
-                    flex_direction: FlexDirection::Column,
-                    row_gap: Val::Px(4.0),
-                    ..default()
-                },
-            ))
-            .with_children(|col| {
-                col.spawn((Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                },))
-                    .with_children(|row| {
-                        row.spawn((icon(&atlas, SpriteId::Heart, 24.0),));
-                        row.spawn(bar(200.0, 18.0, palette::RED, HpFill));
-                        row.spawn((HpText, text("20 / 20", 16.0, palette::WHITE)));
-                    });
-                col.spawn((Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                },))
-                    .with_children(|row| {
-                        row.spawn((icon(&atlas, SpriteId::Crystal, 24.0),));
-                        row.spawn(bar(200.0, 14.0, palette::TEAL, EnergyFill));
-                        row.spawn(text("Sprint: Shift", 13.0, palette::GREY));
-                    });
-                col.spawn((Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                },))
-                    .with_children(|row| {
-                        row.spawn((LevelText, text("Lv 1", 15.0, palette::YELLOW)));
-                        row.spawn(bar(160.0, 8.0, palette::YELLOW, XpFill));
-                    });
-                col.spawn((Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(6.0),
-                    margin: UiRect::top(Val::Px(4.0)),
-                    ..default()
-                },))
-                    .with_children(|row| {
-                        row.spawn((icon(&atlas, SpriteId::Coin, 24.0),));
-                        row.spawn((CoinText, text("0", 16.0, palette::YELLOW)));
-                        row.spawn((icon(&atlas, SpriteId::Potion, 24.0),));
-                        row.spawn((PotionText, text("1", 16.0, palette::WHITE)));
-                        row.spawn((icon(&atlas, SpriteId::Arrows, 24.0),));
-                        row.spawn((ArrowText, text("0", 16.0, palette::WHITE)));
-                        row.spawn((icon(&atlas, SpriteId::Key, 24.0),));
-                        row.spawn((KeyText, text("0", 16.0, palette::WHITE)));
-                    });
-                col.spawn((GearText, text("", 13.0, palette::LIGHT_GREY)));
-            });
+            root.spawn((Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(16.0),
+                top: Val::Px(12.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(4.0),
+                ..default()
+            },))
+                .with_children(|col| {
+                    col.spawn((Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(8.0),
+                        ..default()
+                    },))
+                        .with_children(|row| {
+                            row.spawn((icon(&atlas, SpriteId::Heart, 24.0),));
+                            row.spawn(bar(200.0, 18.0, palette::RED, HpFill));
+                            row.spawn((HpText, text("20 / 20", 16.0, palette::WHITE)));
+                        });
+                    col.spawn((Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(8.0),
+                        ..default()
+                    },))
+                        .with_children(|row| {
+                            row.spawn((icon(&atlas, SpriteId::Crystal, 24.0),));
+                            row.spawn(bar(200.0, 14.0, palette::TEAL, EnergyFill));
+                            row.spawn(text("Shift: sprint   L: block", 13.0, palette::GREY));
+                        });
+                    col.spawn((Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(8.0),
+                        ..default()
+                    },))
+                        .with_children(|row| {
+                            row.spawn((LevelText, text("Lv 1", 15.0, palette::YELLOW)));
+                            row.spawn(bar(160.0, 8.0, palette::YELLOW, XpFill));
+                        });
+                    col.spawn((SpecialText, text("", 14.0, palette::CYAN)));
+                    col.spawn((Node {
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(6.0),
+                        margin: UiRect::top(Val::Px(4.0)),
+                        ..default()
+                    },))
+                        .with_children(|row| {
+                            row.spawn((icon(&atlas, SpriteId::Coin, 24.0),));
+                            row.spawn((CoinText, text("0", 16.0, palette::YELLOW)));
+                            row.spawn((icon(&atlas, SpriteId::Potion, 24.0),));
+                            row.spawn((PotionText, text("1", 16.0, palette::WHITE)));
+                            row.spawn((icon(&atlas, SpriteId::Arrows, 24.0),));
+                            row.spawn((ArrowText, text("0", 16.0, palette::WHITE)));
+                            row.spawn((icon(&atlas, SpriteId::Key, 24.0),));
+                            row.spawn((KeyText, text("0", 16.0, palette::WHITE)));
+                        });
+                    col.spawn((GearText, text("", 13.0, palette::LIGHT_GREY)));
+                });
 
             // Top-right: floor and minimap.
             root.spawn((Node {
@@ -306,9 +317,16 @@ fn hud_visibility(state: Res<State<GameState>>, mut root: Query<&mut Visibility,
     if !state.is_changed() {
         return;
     }
-    let visible = !matches!(state.get(), GameState::Title | GameState::GameOver | GameState::Victory);
+    let visible = !matches!(
+        state.get(),
+        GameState::Title | GameState::ClassSelect | GameState::GameOver | GameState::Victory
+    );
     for mut v in &mut root {
-        *v = if visible { Visibility::Visible } else { Visibility::Hidden };
+        *v = if visible {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
     }
 }
 
@@ -332,25 +350,34 @@ fn update_hud(
         Query<&mut Text, With<FloorText>>,
     )>,
 ) {
-    let Ok((health, energy)) = player.single() else { return };
+    let Ok((health, energy)) = player.single() else {
+        return;
+    };
     let set = |q: &mut Query<&mut Node, With<HpFill>>, pct: f32| {
         for mut n in q.iter_mut() {
             n.width = Val::Percent(pct.clamp(0.0, 100.0));
         }
     };
-    set(&mut fills.p0(), health.hp as f32 / health.max.max(1) as f32 * 100.0);
+    set(
+        &mut fills.p0(),
+        health.hp as f32 / health.max.max(1) as f32 * 100.0,
+    );
     for mut n in fills.p1().iter_mut() {
         n.width = Val::Percent((energy.cur / energy.max.max(1.0) * 100.0).clamp(0.0, 100.0));
     }
     for mut n in fills.p2().iter_mut() {
-        n.width = Val::Percent((hero.xp as f32 / hero.xp_to_next() as f32 * 100.0).clamp(0.0, 100.0));
+        n.width =
+            Val::Percent((hero.xp as f32 / hero.xp_to_next() as f32 * 100.0).clamp(0.0, 100.0));
     }
     let write = |q: &mut Query<&mut Text, With<HpText>>, s: String| {
         for mut t in q.iter_mut() {
             t.0 = s.clone();
         }
     };
-    write(&mut texts.p0(), format!("{} / {}", health.hp.max(0), health.max));
+    write(
+        &mut texts.p0(),
+        format!("{} / {}", health.hp.max(0), health.max),
+    );
     for mut t in texts.p1().iter_mut() {
         t.0 = format!("Lv {}", hero.level);
     }
@@ -376,17 +403,57 @@ fn update_hud(
         let magic = if hero.magic.is_empty() {
             String::new()
         } else {
-            format!("  |  {}", hero.magic.iter().map(|m| m.name()).collect::<Vec<_>>().join(", "))
+            format!(
+                "  |  {}",
+                hero.magic
+                    .iter()
+                    .map(|m| m.name())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         };
         let perks = if hero.perks.is_empty() {
             String::new()
         } else {
-            format!("\nPerks: {}", hero.perks.iter().map(|p| p.name()).collect::<Vec<_>>().join(", "))
+            format!(
+                "\nPerks: {}",
+                hero.perks
+                    .iter()
+                    .map(|p| p.name())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         };
-        t.0 = format!("{}  |  {}  |  {}{}{}", SWORDS[hero.sword].name, bow, armor, magic, perks);
+        t.0 = format!(
+            "{}  |  {}  |  {}  |  {}{}{}",
+            hero.class.name(),
+            SWORDS[hero.sword].name,
+            bow,
+            armor,
+            magic,
+            perks
+        );
     }
     for mut t in texts.p7().iter_mut() {
         t.0 = format!("Floor {} / {}", hero.floor, MAX_FLOOR);
+    }
+}
+
+fn update_special(
+    hero: Res<Hero>,
+    player: Query<&Player>,
+    mut q: Query<(&mut Text, &mut TextColor), With<SpecialText>>,
+) {
+    let Ok(player) = player.single() else { return };
+    for (mut t, mut color) in &mut q {
+        let ability = hero.class.ability_name();
+        if player.special_cd > 0.0 {
+            t.0 = format!("F: {ability}  {:.1}s", player.special_cd);
+            color.0 = palette::GREY;
+        } else {
+            t.0 = format!("F: {ability}  READY");
+            color.0 = palette::CYAN;
+        }
     }
 }
 
@@ -401,7 +468,9 @@ fn update_minimap(
     chests: Query<(&Transform, &Chest)>,
     mut node: Query<&mut Node, With<MinimapNode>>,
 ) {
-    let (Some(floor), Some(explored)) = (floor, explored.as_mut()) else { return };
+    let (Some(floor), Some(explored)) = (floor, explored.as_mut()) else {
+        return;
+    };
     let Ok(pt) = player.single() else { return };
     let d = &floor.dungeon;
     let ptile = tile_of(pt.translation.truncate());
@@ -443,8 +512,12 @@ fn update_minimap(
             n.height = Val::Px(d.h as f32 * scale + 4.0);
         }
     }
-    let Some(mut image) = images.get_mut(&minimap.image) else { return };
-    let Some(data) = image.data.as_mut() else { return };
+    let Some(mut image) = images.get_mut(&minimap.image) else {
+        return;
+    };
+    let Some(data) = image.data.as_mut() else {
+        return;
+    };
     let chest_tiles: Vec<(IVec2, bool)> = chests
         .iter()
         .map(|(t, c)| (tile_of(t.translation.truncate()), c.open))
@@ -461,8 +534,16 @@ fn update_minimap(
             } else if p == d.exit {
                 [99, 199, 77, 255]
             } else if let Some((_, open)) = chest_tiles.iter().find(|(t, _)| *t == p) {
-                if *open { [120, 90, 60, 255] } else { [254, 174, 52, 255] }
-            } else if d.spawns.iter().any(|(q, s)| *q == p && *s == Spawn::Shopkeeper) {
+                if *open {
+                    [120, 90, 60, 255]
+                } else {
+                    [254, 174, 52, 255]
+                }
+            } else if d
+                .spawns
+                .iter()
+                .any(|(q, s)| *q == p && *s == Spawn::Shopkeeper)
+            {
                 [254, 231, 97, 255]
             } else {
                 match d.get(p) {
@@ -483,7 +564,11 @@ fn update_minimap(
     }
 }
 
-fn messages(time: Res<Time>, mut reader: MessageReader<Notify>, mut q: Query<(&mut MessageText, &mut Text, &mut TextColor)>) {
+fn messages(
+    time: Res<Time>,
+    mut reader: MessageReader<Notify>,
+    mut q: Query<(&mut MessageText, &mut Text, &mut TextColor)>,
+) {
     let Ok((mut msg, mut text, mut color)) = q.single_mut() else {
         reader.clear();
         return;
@@ -496,7 +581,11 @@ fn messages(time: Res<Time>, mut reader: MessageReader<Notify>, mut q: Query<(&m
     color.0 = palette::WHITE.with_alpha(msg.0.clamp(0.0, 1.0));
 }
 
-fn banners(time: Res<Time>, mut reader: MessageReader<Banner>, mut q: Query<(&mut BannerText, &mut Text, &mut TextColor)>) {
+fn banners(
+    time: Res<Time>,
+    mut reader: MessageReader<Banner>,
+    mut q: Query<(&mut BannerText, &mut Text, &mut TextColor)>,
+) {
     let Ok((mut banner, mut text, mut color)) = q.single_mut() else {
         reader.clear();
         return;

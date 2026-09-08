@@ -3,6 +3,7 @@
 
 use crate::{
     art::SpriteId,
+    classes::Class,
     dungeon::Dungeon,
     items::{ARMORS, BOWS, MagicItem, Perk, SWORDS},
 };
@@ -12,6 +13,8 @@ use bevy::prelude::*;
 pub enum GameState {
     #[default]
     Title,
+    /// Picking a hero class before a run.
+    ClassSelect,
     /// Generating and spawning the next floor.
     Loading,
     Playing,
@@ -175,9 +178,14 @@ impl Element {
 #[derive(Message)]
 pub struct Notify(pub String);
 
+/// Sent by the character select screen: begin a fresh run as this class.
+#[derive(Message)]
+pub struct StartRun(pub Class);
+
 /// The hero's stats and inventory. Persists across floors within a run.
 #[derive(Resource, Clone)]
 pub struct Hero {
+    pub class: Class,
     pub floor: u32,
     pub level: u32,
     pub xp: u32,
@@ -202,6 +210,7 @@ pub struct Hero {
 impl Default for Hero {
     fn default() -> Self {
         Self {
+            class: Class::Knight,
             floor: 1,
             level: 1,
             xp: 0,
@@ -228,6 +237,23 @@ pub const BASE_HP: i32 = 20;
 pub const BASE_ENERGY: f32 = 100.0;
 
 impl Hero {
+    /// A fresh hero of the given class with that class's starting kit.
+    pub fn new(class: Class) -> Self {
+        let mut hero = Hero {
+            class,
+            ..Default::default()
+        };
+        match class {
+            Class::Ranger => {
+                hero.bow = Some(0);
+                hero.arrows = 20;
+            }
+            Class::Mage => hero.potions = 2,
+            Class::Knight | Class::Rogue => {}
+        }
+        hero
+    }
+
     pub fn has_perk(&self, perk: Perk) -> bool {
         self.perks.contains(&perk)
     }
@@ -237,7 +263,10 @@ impl Hero {
     }
 
     pub fn max_hp(&self) -> i32 {
-        BASE_HP + (self.level as i32 - 1) * 3 + self.heart_containers as i32 * 5
+        BASE_HP
+            + self.class.bonus_hp()
+            + (self.level as i32 - 1) * 3
+            + self.heart_containers as i32 * 5
     }
 
     pub fn max_energy(&self) -> f32 {
@@ -279,7 +308,17 @@ impl Hero {
     }
 
     pub fn move_speed(&self) -> f32 {
-        80.0 * if self.has_perk(Perk::SwiftFeet) { 1.15 } else { 1.0 }
+        80.0 * self.class.speed_multiplier()
+            * if self.has_perk(Perk::SwiftFeet) {
+                1.15
+            } else {
+                1.0
+            }
+    }
+
+    /// Energy a blocked hit costs.
+    pub fn block_cost(&self) -> f32 {
+        self.class.block_cost()
     }
 
     pub fn sprint_multiplier(&self) -> f32 {
@@ -296,30 +335,54 @@ impl Hero {
     }
 
     pub fn energy_regen(&self) -> f32 {
-        14.0 * if self.has_perk(Perk::Marathon) { 1.5 } else { 1.0 }
+        14.0 * if self.has_perk(Perk::Marathon) {
+            1.5
+        } else {
+            1.0
+        }
     }
 
     pub fn sword_cooldown(&self) -> f32 {
-        0.32 * if self.has_perk(Perk::QuickDraw) { 0.7 } else { 1.0 }
+        0.32 * if self.has_perk(Perk::QuickDraw) {
+            0.7
+        } else {
+            1.0
+        }
     }
 
     pub fn potion_heal(&self) -> i32 {
-        if self.has_perk(Perk::SecondWind) { 14 } else { 8 }
+        if self.has_perk(Perk::SecondWind) {
+            14
+        } else {
+            8
+        }
     }
 
     pub fn invuln_time(&self) -> f32 {
-        if self.has_perk(Perk::Nimble) { 1.2 } else { 0.8 }
+        if self.has_perk(Perk::Nimble) {
+            1.2
+        } else {
+            0.8
+        }
     }
 
     pub fn light_radius(&self) -> f32 {
-        if self.has_magic(MagicItem::AmuletOfLight) { 150.0 } else { 96.0 }
+        self.class.bonus_light()
+            + if self.has_magic(MagicItem::AmuletOfLight) {
+                150.0
+            } else {
+                96.0
+            }
     }
 
     /// Steps to the next owned arrow type (plain arrows are always available).
     pub fn cycle_arrows(&mut self) {
         let mut order: Vec<Option<Element>> = vec![None];
         order.extend(self.quivers.iter().map(|e| Some(*e)));
-        let i = order.iter().position(|e| *e == self.arrow_type).unwrap_or(0);
+        let i = order
+            .iter()
+            .position(|e| *e == self.arrow_type)
+            .unwrap_or(0);
         self.arrow_type = order[(i + 1) % order.len()];
     }
 

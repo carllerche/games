@@ -60,7 +60,9 @@ impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FlowField>().add_systems(
             Update,
-            (update_flow_field, enemy_ai, lich_magic, boss_room_seal).chain().in_set(Step::Ai),
+            (update_flow_field, enemy_ai, lich_magic, boss_room_seal)
+                .chain()
+                .in_set(Step::Ai),
         );
     }
 }
@@ -82,24 +84,199 @@ struct Stats {
 fn stats(kind: MonsterKind) -> Stats {
     use MonsterKind::*;
     match kind {
-        Slime => Stats { hp: 5, speed: 120.0, contact: 2, xp: 4, coins: (1, 3), sprite: SpriteId::Slime, scale: 1.0, radius: 6.0, armor: 0, blood: palette::LIME, anim: 0.35 },
-        Bat => Stats { hp: 3, speed: 85.0, contact: 1, xp: 3, coins: (0, 2), sprite: SpriteId::Bat, scale: 1.0, radius: 5.0, armor: 0, blood: palette::PURPLE, anim: 0.08 },
-        Skeleton => Stats { hp: 8, speed: 52.0, contact: 3, xp: 7, coins: (2, 4), sprite: SpriteId::Skeleton, scale: 1.0, radius: 6.0, armor: 0, blood: palette::BONE, anim: 0.18 },
-        Archer => Stats { hp: 6, speed: 48.0, contact: 2, xp: 8, coins: (2, 5), sprite: SpriteId::Archer, scale: 1.0, radius: 6.0, armor: 0, blood: palette::BONE, anim: 0.18 },
-        Spider => Stats { hp: 6, speed: 175.0, contact: 3, xp: 8, coins: (1, 4), sprite: SpriteId::Spider, scale: 1.0, radius: 6.0, armor: 0, blood: palette::DARK_GREEN, anim: 0.1 },
-        Ghost => Stats { hp: 7, speed: 42.0, contact: 3, xp: 10, coins: (3, 6), sprite: SpriteId::Ghost, scale: 1.0, radius: 6.0, armor: 0, blood: palette::CYAN, anim: 0.3 },
-        Knight => Stats { hp: 18, speed: 38.0, contact: 5, xp: 16, coins: (5, 10), sprite: SpriteId::Knight, scale: 1.0, radius: 7.0, armor: 2, blood: palette::RED, anim: 0.25 },
-        Ogre => Stats { hp: 60, speed: 34.0, contact: 6, xp: 60, coins: (14, 22), sprite: SpriteId::Ogre, scale: 2.0, radius: 13.0, armor: 1, blood: palette::DARK_GREEN, anim: 0.3 },
-        Rat => Stats { hp: 3, speed: 78.0, contact: 1, xp: 2, coins: (0, 2), sprite: SpriteId::Rat, scale: 1.0, radius: 5.0, armor: 0, blood: palette::DARK_RED, anim: 0.1 },
-        Kobold => Stats { hp: 5, speed: 46.0, contact: 2, xp: 6, coins: (2, 4), sprite: SpriteId::Kobold, scale: 1.0, radius: 6.0, armor: 0, blood: palette::DARK_RED, anim: 0.2 },
-        Imp => Stats { hp: 5, speed: 70.0, contact: 2, xp: 9, coins: (2, 5), sprite: SpriteId::Imp, scale: 1.0, radius: 5.0, armor: 0, blood: palette::DARK_ORANGE, anim: 0.1 },
-        Cultist => Stats { hp: 8, speed: 30.0, contact: 2, xp: 12, coins: (4, 7), sprite: SpriteId::Cultist, scale: 1.0, radius: 6.0, armor: 0, blood: palette::PURPLE, anim: 0.3 },
-        Golem => Stats { hp: 32, speed: 26.0, contact: 6, xp: 26, coins: (6, 12), sprite: SpriteId::Golem, scale: 1.0, radius: 7.0, armor: 2, blood: palette::GREY, anim: 0.35 },
-        Lich => Stats { hp: 170, speed: 0.0, contact: 5, xp: 200, coins: (20, 30), sprite: SpriteId::Lich, scale: 2.0, radius: 13.0, armor: 0, blood: palette::PURPLE, anim: 0.4 },
+        Slime => Stats {
+            hp: 5,
+            speed: 120.0,
+            contact: 2,
+            xp: 4,
+            coins: (1, 3),
+            sprite: SpriteId::Slime,
+            scale: 1.0,
+            radius: 6.0,
+            armor: 0,
+            blood: palette::LIME,
+            anim: 0.35,
+        },
+        Bat => Stats {
+            hp: 3,
+            speed: 85.0,
+            contact: 1,
+            xp: 3,
+            coins: (0, 2),
+            sprite: SpriteId::Bat,
+            scale: 1.0,
+            radius: 5.0,
+            armor: 0,
+            blood: palette::PURPLE,
+            anim: 0.08,
+        },
+        Skeleton => Stats {
+            hp: 8,
+            speed: 52.0,
+            contact: 3,
+            xp: 7,
+            coins: (2, 4),
+            sprite: SpriteId::Skeleton,
+            scale: 1.0,
+            radius: 6.0,
+            armor: 0,
+            blood: palette::BONE,
+            anim: 0.18,
+        },
+        Archer => Stats {
+            hp: 6,
+            speed: 48.0,
+            contact: 2,
+            xp: 8,
+            coins: (2, 5),
+            sprite: SpriteId::Archer,
+            scale: 1.0,
+            radius: 6.0,
+            armor: 0,
+            blood: palette::BONE,
+            anim: 0.18,
+        },
+        Spider => Stats {
+            hp: 6,
+            speed: 175.0,
+            contact: 3,
+            xp: 8,
+            coins: (1, 4),
+            sprite: SpriteId::Spider,
+            scale: 1.0,
+            radius: 6.0,
+            armor: 0,
+            blood: palette::DARK_GREEN,
+            anim: 0.1,
+        },
+        Ghost => Stats {
+            hp: 7,
+            speed: 42.0,
+            contact: 3,
+            xp: 10,
+            coins: (3, 6),
+            sprite: SpriteId::Ghost,
+            scale: 1.0,
+            radius: 6.0,
+            armor: 0,
+            blood: palette::CYAN,
+            anim: 0.3,
+        },
+        Knight => Stats {
+            hp: 18,
+            speed: 38.0,
+            contact: 5,
+            xp: 16,
+            coins: (5, 10),
+            sprite: SpriteId::Knight,
+            scale: 1.0,
+            radius: 7.0,
+            armor: 2,
+            blood: palette::RED,
+            anim: 0.25,
+        },
+        Ogre => Stats {
+            hp: 60,
+            speed: 34.0,
+            contact: 6,
+            xp: 60,
+            coins: (14, 22),
+            sprite: SpriteId::Ogre,
+            scale: 2.0,
+            radius: 13.0,
+            armor: 1,
+            blood: palette::DARK_GREEN,
+            anim: 0.3,
+        },
+        Rat => Stats {
+            hp: 3,
+            speed: 78.0,
+            contact: 1,
+            xp: 2,
+            coins: (0, 2),
+            sprite: SpriteId::Rat,
+            scale: 1.0,
+            radius: 5.0,
+            armor: 0,
+            blood: palette::DARK_RED,
+            anim: 0.1,
+        },
+        Kobold => Stats {
+            hp: 5,
+            speed: 46.0,
+            contact: 2,
+            xp: 6,
+            coins: (2, 4),
+            sprite: SpriteId::Kobold,
+            scale: 1.0,
+            radius: 6.0,
+            armor: 0,
+            blood: palette::DARK_RED,
+            anim: 0.2,
+        },
+        Imp => Stats {
+            hp: 5,
+            speed: 70.0,
+            contact: 2,
+            xp: 9,
+            coins: (2, 5),
+            sprite: SpriteId::Imp,
+            scale: 1.0,
+            radius: 5.0,
+            armor: 0,
+            blood: palette::DARK_ORANGE,
+            anim: 0.1,
+        },
+        Cultist => Stats {
+            hp: 8,
+            speed: 30.0,
+            contact: 2,
+            xp: 12,
+            coins: (4, 7),
+            sprite: SpriteId::Cultist,
+            scale: 1.0,
+            radius: 6.0,
+            armor: 0,
+            blood: palette::PURPLE,
+            anim: 0.3,
+        },
+        Golem => Stats {
+            hp: 32,
+            speed: 26.0,
+            contact: 6,
+            xp: 26,
+            coins: (6, 12),
+            sprite: SpriteId::Golem,
+            scale: 1.0,
+            radius: 7.0,
+            armor: 2,
+            blood: palette::GREY,
+            anim: 0.35,
+        },
+        Lich => Stats {
+            hp: 170,
+            speed: 0.0,
+            contact: 5,
+            xp: 200,
+            coins: (20, 30),
+            sprite: SpriteId::Lich,
+            scale: 2.0,
+            radius: 13.0,
+            armor: 0,
+            blood: palette::PURPLE,
+            anim: 0.4,
+        },
     }
 }
 
-pub fn spawn_enemy(commands: &mut Commands, atlas: &Atlas, kind: MonsterKind, floor: u32, pos: Vec2, home: Option<&Room>) {
+pub fn spawn_enemy(
+    commands: &mut Commands,
+    atlas: &Atlas,
+    kind: MonsterKind,
+    floor: u32,
+    pos: Vec2,
+    home: Option<&Room>,
+) {
     let s = stats(kind);
     let hp = (s.hp as f32 * (1.0 + 0.12 * (floor as f32 - 1.0))).round() as i32;
     let contact = s.contact + (floor as i32 - 1) / 3;
@@ -204,7 +381,16 @@ fn enemy_ai(
     field: Res<FlowField>,
     mut shake: ResMut<Shake>,
     player: Query<&Transform, (With<Player>, Without<Enemy>)>,
-    mut enemies: Query<(&mut Transform, &mut Enemy, &Hitbox, &mut Animation, &mut Sprite, &mut BaseColor, Option<&Knockback>, Option<&Frozen>)>,
+    mut enemies: Query<(
+        &mut Transform,
+        &mut Enemy,
+        &Hitbox,
+        &mut Animation,
+        &mut Sprite,
+        &mut BaseColor,
+        Option<&Knockback>,
+        Option<&Frozen>,
+    )>,
     mut sfx: MessageWriter<PlaySfx>,
 ) {
     let dt = time.delta_secs();
@@ -214,7 +400,9 @@ fn enemy_ai(
     let mut rng = rand::rng();
     let d = &floor.dungeon;
 
-    for (mut transform, mut enemy, hitbox, mut anim, mut sprite, mut base, knockback, frozen) in &mut enemies {
+    for (mut transform, mut enemy, hitbox, mut anim, mut sprite, mut base, knockback, frozen) in
+        &mut enemies
+    {
         if frozen.is_some() {
             // Frozen solid: no thinking, no moving, no cooldowns.
             anim.playing = false;
@@ -228,7 +416,11 @@ fn enemy_ai(
         let in_home = enemy
             .home
             .is_none_or(|home| home.inflate(TILE).contains(ppos));
-        let dist = if in_home { to_player.length() } else { f32::INFINITY };
+        let dist = if in_home {
+            to_player.length()
+        } else {
+            f32::INFINITY
+        };
         if !in_home {
             enemy.aggro = false;
         }
@@ -275,7 +467,8 @@ fn enemy_ai(
                 } else {
                     if enemy.timer <= 0.0 {
                         enemy.timer = rng.random_range(0.6..1.4);
-                        enemy.wander = Vec2::from_angle(rng.random_range(0.0..std::f32::consts::TAU));
+                        enemy.wander =
+                            Vec2::from_angle(rng.random_range(0.0..std::f32::consts::TAU));
                     }
                     velocity = enemy.wander * 35.0;
                 }
@@ -309,43 +502,52 @@ fn enemy_ai(
                     }
                     if los && enemy.cooldown <= 0.0 && dist < 200.0 {
                         enemy.cooldown = 1.9;
-                        spawn_projectile(&mut commands, &atlas, SpriteId::Arrow, pos + dir_to_player * 8.0, dir_to_player, 150.0, 2 + (d.floor as i32 - 1) / 3, Faction::Monster, false, None);
+                        spawn_projectile(
+                            &mut commands,
+                            &atlas,
+                            SpriteId::Arrow,
+                            pos + dir_to_player * 8.0,
+                            dir_to_player,
+                            150.0,
+                            2 + (d.floor as i32 - 1) / 3,
+                            Faction::Monster,
+                            false,
+                            None,
+                        );
                         sfx.write(PlaySfx(SfxKind::Bow));
                     }
                 }
             }
-            MonsterKind::Spider => {
-                match enemy.state {
-                    AiState::Idle => {
-                        anim.playing = false;
-                        if dist < 70.0 && line_of_sight(d, pos, ppos) {
-                            enemy.state = AiState::Windup;
-                            enemy.timer = 0.25;
-                        }
+            MonsterKind::Spider => match enemy.state {
+                AiState::Idle => {
+                    anim.playing = false;
+                    if dist < 70.0 && line_of_sight(d, pos, ppos) {
+                        enemy.state = AiState::Windup;
+                        enemy.timer = 0.25;
                     }
-                    AiState::Windup => {
-                        anim.playing = true;
-                        if enemy.timer <= 0.0 {
-                            enemy.state = AiState::Charge(dir_to_player);
-                            enemy.timer = 0.45;
-                        }
-                    }
-                    AiState::Charge(dir) => {
-                        velocity = dir * enemy.speed;
-                        if enemy.timer <= 0.0 {
-                            enemy.state = AiState::Rest;
-                            enemy.timer = 0.7;
-                        }
-                    }
-                    AiState::Rest => {
-                        anim.playing = false;
-                        if enemy.timer <= 0.0 {
-                            enemy.state = AiState::Idle;
-                        }
-                    }
-                    AiState::Chase => enemy.state = AiState::Idle,
                 }
-            }
+                AiState::Windup => {
+                    anim.playing = true;
+                    if enemy.timer <= 0.0 {
+                        enemy.state = AiState::Charge(dir_to_player);
+                        enemy.timer = 0.45;
+                    }
+                }
+                AiState::Charge(dir) => {
+                    velocity = dir * enemy.speed;
+                    if enemy.timer <= 0.0 {
+                        enemy.state = AiState::Rest;
+                        enemy.timer = 0.7;
+                    }
+                }
+                AiState::Rest => {
+                    anim.playing = false;
+                    if enemy.timer <= 0.0 {
+                        enemy.state = AiState::Idle;
+                    }
+                }
+                AiState::Chase => enemy.state = AiState::Idle,
+            },
             MonsterKind::Ghost => {
                 through_walls = true;
                 let phase = 0.5 + 0.5 * (t * 1.4 + pos.x * 0.01).sin();
@@ -365,7 +567,8 @@ fn enemy_ai(
                         if enemy.aggro {
                             enemy.state = AiState::Chase;
                             let f = flow_direction(d, &field.dist, pos);
-                            velocity = if f == Vec2::ZERO { dir_to_player } else { f } * enemy.speed;
+                            velocity =
+                                if f == Vec2::ZERO { dir_to_player } else { f } * enemy.speed;
                             if dist < 34.0 && enemy.cooldown <= 0.0 {
                                 enemy.state = AiState::Windup;
                                 enemy.timer = 0.4;
@@ -404,7 +607,8 @@ fn enemy_ai(
                     AiState::Idle | AiState::Chase => {
                         if enemy.aggro {
                             let f = flow_direction(d, &field.dist, pos);
-                            velocity = if f == Vec2::ZERO { dir_to_player } else { f } * enemy.speed;
+                            velocity =
+                                if f == Vec2::ZERO { dir_to_player } else { f } * enemy.speed;
                             if enemy.cooldown <= 0.0 && line_of_sight(d, pos, ppos) {
                                 enemy.state = AiState::Windup;
                                 enemy.timer = 0.7;
@@ -478,7 +682,18 @@ fn enemy_ai(
                     if los && enemy.cooldown <= 0.0 && dist < 160.0 {
                         enemy.cooldown = 2.2;
                         // A lobbed stone: slow, so it can be dodged.
-                        spawn_projectile(&mut commands, &atlas, SpriteId::Rock, pos + dir_to_player * 8.0, dir_to_player, 115.0, 2, Faction::Monster, false, None);
+                        spawn_projectile(
+                            &mut commands,
+                            &atlas,
+                            SpriteId::Rock,
+                            pos + dir_to_player * 8.0,
+                            dir_to_player,
+                            115.0,
+                            2,
+                            Faction::Monster,
+                            false,
+                            None,
+                        );
                         sfx.write(PlaySfx(SfxKind::Swing));
                     }
                 }
@@ -489,18 +704,41 @@ fn enemy_ai(
                 }
                 if enemy.aggro {
                     // Circle the hero at a distance and spit fire.
-                    let orbit = dir_to_player.perp() * if (pos.x as i32 / 40) % 2 == 0 { 1.0 } else { -1.0 };
-                    let range = if dist < 60.0 { -1.0 } else if dist > 100.0 { 1.0 } else { 0.0 };
+                    let orbit = dir_to_player.perp()
+                        * if (pos.x as i32 / 40) % 2 == 0 {
+                            1.0
+                        } else {
+                            -1.0
+                        };
+                    let range = if dist < 60.0 {
+                        -1.0
+                    } else if dist > 100.0 {
+                        1.0
+                    } else {
+                        0.0
+                    };
                     velocity = (orbit + dir_to_player * range).normalize_or_zero() * enemy.speed;
                     if enemy.cooldown <= 0.0 && dist < 150.0 && line_of_sight(d, pos, ppos) {
                         enemy.cooldown = 2.4;
-                        spawn_projectile(&mut commands, &atlas, SpriteId::Fireball, pos + dir_to_player * 8.0, dir_to_player, 135.0, 2, Faction::Monster, false, Some(Element::Fire));
+                        spawn_projectile(
+                            &mut commands,
+                            &atlas,
+                            SpriteId::Fireball,
+                            pos + dir_to_player * 8.0,
+                            dir_to_player,
+                            135.0,
+                            2,
+                            Faction::Monster,
+                            false,
+                            Some(Element::Fire),
+                        );
                         sfx.write(PlaySfx(SfxKind::Bow));
                     }
                 } else {
                     if enemy.timer <= 0.0 {
                         enemy.timer = rng.random_range(0.6..1.4);
-                        enemy.wander = Vec2::from_angle(rng.random_range(0.0..std::f32::consts::TAU));
+                        enemy.wander =
+                            Vec2::from_angle(rng.random_range(0.0..std::f32::consts::TAU));
                     }
                     velocity = enemy.wander * 30.0;
                 }
@@ -516,11 +754,14 @@ fn enemy_ai(
                         enemy.timer = 3.0;
                         if let Some(home) = enemy.home {
                             let mut tiles = Vec::new();
-                            let (lo, hi) = (tile_of(home.min), tile_of(home.max - Vec2::splat(1.0)));
+                            let (lo, hi) =
+                                (tile_of(home.min), tile_of(home.max - Vec2::splat(1.0)));
                             for y in lo.y..=hi.y {
                                 for x in lo.x..=hi.x {
                                     let p = IVec2::new(x, y);
-                                    if d.get(p) == Tile::Floor && tile_center(p).distance(ppos) > 70.0 {
+                                    if d.get(p) == Tile::Floor
+                                        && tile_center(p).distance(ppos) > 70.0
+                                    {
                                         tiles.push(p);
                                     }
                                 }
@@ -530,7 +771,14 @@ fn enemy_ai(
                                 let target = tile_center(*p);
                                 transform.translation.x = target.x;
                                 transform.translation.y = target.y;
-                                spawn_particles(&mut commands, target, palette::PURPLE, 10, 50.0, 0.4);
+                                spawn_particles(
+                                    &mut commands,
+                                    target,
+                                    palette::PURPLE,
+                                    10,
+                                    50.0,
+                                    0.4,
+                                );
                                 sfx.write(PlaySfx(SfxKind::Teleport));
                                 enemy.cooldown = 0.8;
                             }
@@ -543,7 +791,18 @@ fn enemy_ai(
                         enemy.cooldown = 2.6;
                         for spread in [-0.22, 0.0, 0.22] {
                             let dir = Vec2::from_angle(spread).rotate(dir_to_player);
-                            spawn_projectile(&mut commands, &atlas, SpriteId::Bolt, pos + dir * 8.0, dir, 105.0, 3, Faction::Monster, false, None);
+                            spawn_projectile(
+                                &mut commands,
+                                &atlas,
+                                SpriteId::Bolt,
+                                pos + dir * 8.0,
+                                dir,
+                                105.0,
+                                3,
+                                Faction::Monster,
+                                false,
+                                None,
+                            );
                         }
                         sfx.write(PlaySfx(SfxKind::Teleport));
                     }
@@ -558,7 +817,8 @@ fn enemy_ai(
                         if enemy.aggro {
                             enemy.state = AiState::Chase;
                             let f = flow_direction(d, &field.dist, pos);
-                            velocity = if f == Vec2::ZERO { dir_to_player } else { f } * enemy.speed;
+                            velocity =
+                                if f == Vec2::ZERO { dir_to_player } else { f } * enemy.speed;
                             if dist < 30.0 && enemy.cooldown <= 0.0 {
                                 enemy.state = AiState::Windup;
                                 enemy.timer = 0.55;
@@ -572,7 +832,14 @@ fn enemy_ai(
                             enemy.state = AiState::Charge(dir_to_player);
                             enemy.timer = 0.18;
                             shake.add(0.35);
-                            spawn_particles(&mut commands, pos + Vec2::new(0.0, -6.0), palette::GREY, 8, 50.0, 0.4);
+                            spawn_particles(
+                                &mut commands,
+                                pos + Vec2::new(0.0, -6.0),
+                                palette::GREY,
+                                8,
+                                50.0,
+                                0.4,
+                            );
                             sfx.write(PlaySfx(SfxKind::Break));
                         }
                     }
@@ -634,10 +901,24 @@ fn enemy_ai(
             if velocity.x.abs() > 0.1 {
                 sprite.flip_x = velocity.x < 0.0;
             }
-            if !matches!(enemy.kind, MonsterKind::Slime | MonsterKind::Spider | MonsterKind::Knight | MonsterKind::Ogre | MonsterKind::Golem) {
+            if !matches!(
+                enemy.kind,
+                MonsterKind::Slime
+                    | MonsterKind::Spider
+                    | MonsterKind::Knight
+                    | MonsterKind::Ogre
+                    | MonsterKind::Golem
+            ) {
                 anim.playing = true;
             }
-        } else if matches!(enemy.kind, MonsterKind::Skeleton | MonsterKind::Archer | MonsterKind::Rat | MonsterKind::Kobold | MonsterKind::Cultist) {
+        } else if matches!(
+            enemy.kind,
+            MonsterKind::Skeleton
+                | MonsterKind::Archer
+                | MonsterKind::Rat
+                | MonsterKind::Kobold
+                | MonsterKind::Cultist
+        ) {
             anim.playing = false;
             anim.frame = 0;
         }
@@ -645,8 +926,14 @@ fn enemy_ai(
         // Whatever happened, stay inside the home room.
         if let Some(home) = enemy.home {
             let r = enemy.radius;
-            transform.translation.x = transform.translation.x.clamp(home.min.x + r, home.max.x - r);
-            transform.translation.y = transform.translation.y.clamp(home.min.y + r, home.max.y - r);
+            transform.translation.x = transform
+                .translation
+                .x
+                .clamp(home.min.x + r, home.max.x - r);
+            transform.translation.y = transform
+                .translation
+                .y
+                .clamp(home.min.y + r, home.max.y - r);
         }
     }
 }
@@ -668,7 +955,9 @@ fn lich_magic(
     let ppos = pt.translation.truncate();
     let mut rng = rand::rng();
     let d = &floor.dungeon;
-    let Some(room) = d.room_of_kind(RoomKind::Boss) else { return };
+    let Some(room) = d.room_of_kind(RoomKind::Boss) else {
+        return;
+    };
 
     for (mut transform, mut enemy) in &mut liches {
         if enemy.kind != MonsterKind::Lich {
@@ -687,14 +976,38 @@ fn lich_magic(
             let dmg = 4;
             if rng.random_bool(0.5) {
                 for i in 0..8 {
-                    let dir = Vec2::from_angle(i as f32 / 8.0 * std::f32::consts::TAU + time.elapsed_secs());
-                    spawn_projectile(&mut commands, &atlas, SpriteId::Bolt, pos + dir * 12.0, dir, 95.0, dmg, Faction::Monster, false, None);
+                    let dir = Vec2::from_angle(
+                        i as f32 / 8.0 * std::f32::consts::TAU + time.elapsed_secs(),
+                    );
+                    spawn_projectile(
+                        &mut commands,
+                        &atlas,
+                        SpriteId::Bolt,
+                        pos + dir * 12.0,
+                        dir,
+                        95.0,
+                        dmg,
+                        Faction::Monster,
+                        false,
+                        None,
+                    );
                 }
             } else {
                 let aim = (ppos - pos).normalize_or_zero();
                 for spread in [-0.25, 0.0, 0.25] {
                     let dir = Vec2::from_angle(spread).rotate(aim);
-                    spawn_projectile(&mut commands, &atlas, SpriteId::Bolt, pos + dir * 12.0, dir, 140.0, dmg, Faction::Monster, false, None);
+                    spawn_projectile(
+                        &mut commands,
+                        &atlas,
+                        SpriteId::Bolt,
+                        pos + dir * 12.0,
+                        dir,
+                        140.0,
+                        dmg,
+                        Faction::Monster,
+                        false,
+                        None,
+                    );
                 }
             }
             sfx.write(PlaySfx(SfxKind::Teleport));
@@ -723,13 +1036,24 @@ fn lich_magic(
 
         if enemy.summon_timer <= 0.0 {
             enemy.summon_timer = 11.0;
-            let alive = minions.iter().filter(|e| e.kind == MonsterKind::Skeleton).count();
+            let alive = minions
+                .iter()
+                .filter(|e| e.kind == MonsterKind::Skeleton)
+                .count();
             if alive < 4 {
                 for _ in 0..2 {
-                    let offset = Vec2::from_angle(rng.random_range(0.0..std::f32::consts::TAU)) * 28.0;
+                    let offset =
+                        Vec2::from_angle(rng.random_range(0.0..std::f32::consts::TAU)) * 28.0;
                     let p = pos + offset;
                     if !d.solid(tile_of(p)) {
-                        spawn_enemy(&mut commands, &atlas, MonsterKind::Skeleton, MAX_FLOOR, p, Some(room));
+                        spawn_enemy(
+                            &mut commands,
+                            &atlas,
+                            MonsterKind::Skeleton,
+                            MAX_FLOOR,
+                            p,
+                            Some(room),
+                        );
                         spawn_particles(&mut commands, p, palette::BONE, 8, 40.0, 0.5);
                     }
                 }
@@ -757,8 +1081,13 @@ fn boss_room_seal(
     }
     let Ok(t) = player.single() else { return };
     let tile = tile_of(t.translation.truncate());
-    let Some(room) = floor.dungeon.room_of_kind(RoomKind::Boss) else { return };
-    let inside = tile.x > room.x && tile.x < room.x + room.w - 1 && tile.y > room.y && tile.y < room.y + room.h - 1;
+    let Some(room) = floor.dungeon.room_of_kind(RoomKind::Boss) else {
+        return;
+    };
+    let inside = tile.x > room.x
+        && tile.x < room.x + room.w - 1
+        && tile.y > room.y
+        && tile.y < room.y + room.h - 1;
     if !inside {
         return;
     }

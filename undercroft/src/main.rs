@@ -6,6 +6,7 @@
 
 mod art;
 mod audio;
+mod classes;
 mod combat;
 mod debug;
 mod dungeon;
@@ -78,9 +79,11 @@ fn main() {
         .insert_resource(RunSeed(rand::rng().random()))
         .add_message::<Notify>()
         .add_message::<Banner>()
+        .add_message::<StartRun>()
         .add_plugins((
             input::InputPlugin,
             audio::GameAudioPlugin,
+            classes::ClassesPlugin,
             lighting::LightingPlugin,
             floor::FloorPlugin,
             player::PlayerPlugin,
@@ -93,7 +96,14 @@ fn main() {
         ))
         .configure_sets(
             Update,
-            (Step::Move, Step::Ai, Step::Hits, Step::Damage, Step::Juice, Step::Camera)
+            (
+                Step::Move,
+                Step::Ai,
+                Step::Hits,
+                Step::Damage,
+                Step::Juice,
+                Step::Camera,
+            )
                 .chain()
                 .run_if(in_state(GameState::Playing)),
         )
@@ -101,9 +111,10 @@ fn main() {
         .add_systems(Startup, setup_cameras)
         .add_systems(Update, (fit_canvas, animate_sprites, y_sort))
         .add_systems(Update, (camera_follow, decay_shake).in_set(Step::Camera))
-        .add_systems(OnEnter(GameState::Title), show_title)
+        .add_systems(OnEnter(GameState::Title), (clear_run, show_title))
         .add_systems(OnExit(GameState::Title), despawn_all::<TitleUi>)
         .add_systems(Update, title_input.run_if(in_state(GameState::Title)))
+        .add_systems(Update, begin_run.run_if(in_state(GameState::ClassSelect)))
         .add_systems(Update, pause_input.run_if(in_state(GameState::Playing)))
         .add_systems(OnEnter(GameState::Paused), show_pause)
         .add_systems(OnExit(GameState::Paused), despawn_all::<PauseUi>)
@@ -173,7 +184,10 @@ fn fit_canvas(
     mut ui_scale: ResMut<UiScale>,
 ) {
     for event in resized.read() {
-        let scale = (event.width / CANVAS_W as f32).min(event.height / CANVAS_H as f32).floor().max(1.0);
+        let scale = (event.width / CANVAS_W as f32)
+            .min(event.height / CANVAS_H as f32)
+            .floor()
+            .max(1.0);
         for mut p in &mut projection {
             if let Projection::Orthographic(o) = &mut *p {
                 o.scale = 1.0 / scale;
@@ -192,15 +206,29 @@ fn camera_follow(
     player: Query<&Transform, (With<Player>, Without<GameCamera>)>,
     mut camera: Query<&mut Transform, With<GameCamera>>,
 ) {
-    let (Ok(player), Ok(mut cam)) = (player.single(), camera.single_mut()) else { return };
+    let (Ok(player), Ok(mut cam)) = (player.single(), camera.single_mut()) else {
+        return;
+    };
     let map = Vec2::new(floor.dungeon.w as f32, floor.dungeon.h as f32) * TILE;
     let half = Vec2::new(CANVAS_W as f32, CANVAS_H as f32) / 2.0;
     let mut target = player.translation.truncate();
-    target.x = if map.x > half.x * 2.0 { target.x.clamp(half.x, map.x - half.x) } else { map.x / 2.0 };
-    target.y = if map.y > half.y * 2.0 { target.y.clamp(half.y, map.y - half.y) } else { map.y / 2.0 };
+    target.x = if map.x > half.x * 2.0 {
+        target.x.clamp(half.x, map.x - half.x)
+    } else {
+        map.x / 2.0
+    };
+    target.y = if map.y > half.y * 2.0 {
+        target.y.clamp(half.y, map.y - half.y)
+    } else {
+        map.y / 2.0
+    };
     let current = cam.translation.truncate();
     let t = 1.0 - (-9.0 * time.delta_secs()).exp();
-    let mut pos = if current.distance(target) > 260.0 { target } else { current.lerp(target, t) };
+    let mut pos = if current.distance(target) > 260.0 {
+        target
+    } else {
+        current.lerp(target, t)
+    };
     let mut rng = rand::rng();
     let amount = shake.trauma * shake.trauma * 5.0;
     pos += Vec2::new(rng.random_range(-1.0..1.0), rng.random_range(-1.0..1.0)) * amount;
@@ -267,7 +295,11 @@ fn overlay(marker: impl Component, dim: f32) -> impl Bundle {
 fn show_title(mut commands: Commands) {
     commands.spawn(overlay(TitleUi, 0.0)).with_children(|root| {
         root.spawn(text("UNDERCROFT", 72.0, palette::CARPET_TRIM));
-        root.spawn(text("Escape the dungeon. Eight floors down, one way out.", 20.0, palette::LIGHT_GREY));
+        root.spawn(text(
+            "Escape the dungeon. Eight floors down, one way out.",
+            20.0,
+            palette::LIGHT_GREY,
+        ));
         root.spawn(Node {
             height: Val::Px(24.0),
             ..default()
@@ -276,6 +308,7 @@ fn show_title(mut commands: Commands) {
             "WASD / Arrows  move",
             "Shift  sprint (drains energy)",
             "J / Space  sword          K  bow",
+            "L  raise shield (hold)    F  special ability",
             "Q  drink potion            E  interact / trade",
             "Esc  pause                 Gamepad supported",
         ] {
@@ -285,21 +318,42 @@ fn show_title(mut commands: Commands) {
             height: Val::Px(24.0),
             ..default()
         });
-        root.spawn(text("Press ENTER to descend", 24.0, palette::YELLOW));
+        root.spawn(text(
+            "Press ENTER to choose your hero",
+            24.0,
+            palette::YELLOW,
+        ));
     });
 }
 
-fn start_run(
-    commands: &mut Commands,
-    hero: &mut Hero,
-    seed: &mut RunSeed,
-    run_entities: &Query<Entity, With<RunEntity>>,
-    next: &mut NextState<GameState>,
+/// Back at the title, nothing of the last run should linger behind it.
+fn clear_run(
+    mut commands: Commands,
+    run_entities: Query<Entity, With<RunEntity>>,
+    floor_entities: Query<Entity, With<FloorEntity>>,
 ) {
-    for e in run_entities {
+    for e in run_entities.iter().chain(floor_entities.iter()) {
         commands.entity(e).despawn();
     }
-    *hero = Hero::default();
+    commands.remove_resource::<CurrentFloor>();
+}
+
+/// The character select screen confirmed a class: start a fresh run.
+fn begin_run(
+    mut commands: Commands,
+    mut starts: MessageReader<StartRun>,
+    mut hero: ResMut<Hero>,
+    mut seed: ResMut<RunSeed>,
+    run_entities: Query<Entity, With<RunEntity>>,
+    mut next: ResMut<NextState<GameState>>,
+) {
+    let Some(StartRun(class)) = starts.read().last() else {
+        return;
+    };
+    for e in &run_entities {
+        commands.entity(e).despawn();
+    }
+    *hero = Hero::new(*class);
     seed.0 = std::env::var("UNDERCROFT_SEED")
         .ok()
         .and_then(|v| v.parse().ok())
@@ -308,12 +362,8 @@ fn start_run(
 }
 
 fn title_input(
-    mut commands: Commands,
     controls: Res<Controls>,
     keys: Res<ButtonInput<KeyCode>>,
-    mut hero: ResMut<Hero>,
-    mut seed: ResMut<RunSeed>,
-    run_entities: Query<Entity, With<RunEntity>>,
     mut next: ResMut<NextState<GameState>>,
     mut sfx: MessageWriter<audio::PlaySfx>,
     mut exit: MessageWriter<AppExit>,
@@ -325,7 +375,7 @@ fn title_input(
     }
     if controls.confirm {
         sfx.write(audio::PlaySfx(audio::SfxKind::Select));
-        start_run(&mut commands, &mut hero, &mut seed, &run_entities, &mut next);
+        next.set(GameState::ClassSelect);
     }
 }
 
@@ -339,12 +389,23 @@ fn show_pause(mut commands: Commands, hero: Res<Hero>) {
     commands.spawn(overlay(PauseUi, 0.6)).with_children(|root| {
         root.spawn(text("PAUSED", 48.0, palette::YELLOW));
         root.spawn(text(
-            format!("Floor {}   Level {}   {} coins   {} kills", hero.floor, hero.level, hero.coins, hero.kills),
+            format!(
+                "{}   Floor {}   Level {}   {} coins   {} kills",
+                hero.class.name(),
+                hero.floor,
+                hero.level,
+                hero.coins,
+                hero.kills
+            ),
             18.0,
             palette::LIGHT_GREY,
         ));
         if !hero.perks.is_empty() {
-            let perks = hero.perks.iter().map(|p| format!("{}: {}", p.name(), p.description())).collect::<Vec<_>>();
+            let perks = hero
+                .perks
+                .iter()
+                .map(|p| format!("{}: {}", p.name(), p.description()))
+                .collect::<Vec<_>>();
             for p in perks {
                 root.spawn(text(p, 15.0, palette::GREY));
             }
@@ -353,11 +414,19 @@ fn show_pause(mut commands: Commands, hero: Res<Hero>) {
             height: Val::Px(16.0),
             ..default()
         });
-        root.spawn(text("Esc: resume        T: abandon run", 17.0, palette::GREY));
+        root.spawn(text(
+            "Esc: resume        T: abandon run",
+            17.0,
+            palette::GREY,
+        ));
     });
 }
 
-fn paused_input(controls: Res<Controls>, keys: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<GameState>>) {
+fn paused_input(
+    controls: Res<Controls>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut next: ResMut<NextState<GameState>>,
+) {
     if controls.pause {
         next.set(GameState::Playing);
     }
@@ -375,7 +444,10 @@ fn show_game_over(mut commands: Commands, hero: Res<Hero>) {
             palette::LIGHT_GREY,
         ));
         root.spawn(text(
-            format!("{} monsters slain, {} coins in your pocket.", hero.kills, hero.coins),
+            format!(
+                "{} monsters slain, {} coins in your pocket.",
+                hero.kills, hero.coins
+            ),
             18.0,
             palette::GREY,
         ));
@@ -383,7 +455,11 @@ fn show_game_over(mut commands: Commands, hero: Res<Hero>) {
             height: Val::Px(24.0),
             ..default()
         });
-        root.spawn(text("Enter: descend again        Esc: title", 20.0, palette::YELLOW));
+        root.spawn(text(
+            "Enter: choose a hero and descend again        Esc: title",
+            20.0,
+            palette::YELLOW,
+        ));
     });
 }
 
@@ -391,9 +467,16 @@ fn show_victory(mut commands: Commands, hero: Res<Hero>, mut sfx: MessageWriter<
     sfx.write(audio::PlaySfx(audio::SfxKind::Victory));
     commands.spawn(overlay(EndUi, 0.75)).with_children(|root| {
         root.spawn(text("YOU ESCAPED", 64.0, palette::YELLOW));
-        root.spawn(text("Daylight. You never thought you'd see it again.", 20.0, palette::LIGHT_GREY));
         root.spawn(text(
-            format!("Level {}, {} monsters slain, {} coins to your name.", hero.level, hero.kills, hero.coins),
+            "Daylight. You never thought you'd see it again.",
+            20.0,
+            palette::LIGHT_GREY,
+        ));
+        root.spawn(text(
+            format!(
+                "Level {}, {} monsters slain, {} coins to your name.",
+                hero.level, hero.kills, hero.coins
+            ),
             18.0,
             palette::GREY,
         ));
@@ -401,28 +484,22 @@ fn show_victory(mut commands: Commands, hero: Res<Hero>, mut sfx: MessageWriter<
             height: Val::Px(24.0),
             ..default()
         });
-        root.spawn(text("Enter: play again        Esc: title", 20.0, palette::YELLOW));
+        root.spawn(text(
+            "Enter: choose a hero and play again        Esc: title",
+            20.0,
+            palette::YELLOW,
+        ));
     });
 }
 
-#[allow(clippy::too_many_arguments)]
 fn end_input(
-    mut commands: Commands,
     controls: Res<Controls>,
     keys: Res<ButtonInput<KeyCode>>,
-    mut hero: ResMut<Hero>,
-    mut seed: ResMut<RunSeed>,
-    run_entities: Query<Entity, With<RunEntity>>,
-    floor_entities: Query<Entity, With<FloorEntity>>,
     mut next: ResMut<NextState<GameState>>,
 ) {
     if controls.confirm {
-        start_run(&mut commands, &mut hero, &mut seed, &run_entities, &mut next);
+        next.set(GameState::ClassSelect);
     } else if keys.just_pressed(KeyCode::Escape) {
-        for e in run_entities.iter().chain(floor_entities.iter()) {
-            commands.entity(e).despawn();
-        }
-        commands.remove_resource::<CurrentFloor>();
         next.set(GameState::Title);
     }
 }
